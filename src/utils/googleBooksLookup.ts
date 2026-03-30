@@ -1,0 +1,96 @@
+import { LookupResult, BookData } from '../types/book';
+
+// ─── Normalisation ────────────────────────────────────────────────────────────
+// Strip articles, punctuation, extra spaces; lowercase.
+function normalise(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/^(the|a|an)\s+/i, '')   // leading article
+    .replace(/[^\w\s]/g, '')           // punctuation
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// ─── Similarity score (0–1) ───────────────────────────────────────────────────
+// Uses Dice coefficient on bigrams — good for short strings like titles.
+function bigrams(s: string): Set<string> {
+  const set = new Set<string>();
+  for (let i = 0; i < s.length - 1; i++) set.add(s.slice(i, i + 2));
+  return set;
+}
+
+function dice(a: string, b: string): number {
+  if (!a || !b) return 0;
+  if (a === b) return 1;
+  const ba = bigrams(a);
+  const bb = bigrams(b);
+  if (ba.size === 0 || bb.size === 0) return 0;
+  let overlap = 0;
+  ba.forEach(bg => { if (bb.has(bg)) overlap++; });
+  return (2 * overlap) / (ba.size + bb.size);
+}
+
+function similarity(query: string, title: string): number {
+  const q = normalise(query);
+  const t = normalise(title);
+
+  // Exact match after normalisation
+  if (q === t) return 1;
+
+  // One fully contains the other (e.g. query "Dune" vs title "Dune Messiah")
+  if (t === q || t.startsWith(q + ' ') || t.endsWith(' ' + q)) return 0.9;
+  if (q.startsWith(t + ' ') || q.endsWith(' ' + t)) return 0.85;
+
+  return dice(q, t);
+}
+
+// Auto-resolve threshold: score must be at or above this to skip the picker
+const AUTO_RESOLVE_THRESHOLD = 0.8;
+
+// ─── Main lookup ──────────────────────────────────────────────────────────────
+export async function googleBooksLookup(query: string): Promise<LookupResult> {
+  try {
+    const apiKey = import.meta.env.VITE_GOOGLE_BOOKS_API_KEY;
+    const url = `https://www.googleapis.com/books/v1/volumes?q=intitle:${encodeURIComponent(query)}&maxResults=8&key=${apiKey}`;
+    const response = await fetch(url);
+
+    if (!response.ok) return { type: 'none' };
+
+    const data = await response.json();
+    if (!data.items || data.items.length === 0) return { type: 'none' };
+
+    // Map and score all results
+    const scored: Array<{ book: BookData; score: number }> = data.items
+      .map((item: any) => {
+        const title: string = item.volumeInfo.title ?? '';
+        const book: BookData = {
+          title,
+          author: item.volumeInfo.authors?.[0] ?? 'Unknown Author',
+          year: item.volumeInfo.publishedDate?.split('-')[0],
+        };
+        return { book, score: similarity(query, title) };
+      })
+      // Drop results with no meaningful title similarity at all
+      .filter((r: { book: BookData; score: number }) => r.score > 0.1);
+
+    if (scored.length === 0) return { type: 'none' };
+
+    // Sort best match first
+    scored.sort((a: { score: number }, b: { score: number }) => b.score - a.score);
+
+    const best = scored[0];
+
+    // Auto-resolve if the top result is clearly the right book
+    if (best.score >= AUTO_RESOLVE_THRESHOLD) {
+      return { type: 'single', book: best.book };
+    }
+
+    // Otherwise return top 5 ranked candidates for the user to pick
+    return {
+      type: 'multi',
+      options: scored.slice(0, 5).map((r: { book: BookData }) => r.book),
+    };
+  } catch {
+    return { type: 'none' };
+  }
+}
