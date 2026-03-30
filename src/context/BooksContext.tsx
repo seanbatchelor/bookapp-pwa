@@ -21,6 +21,7 @@ type BooksContextType = {
   updateBookText: (id: string, text: string) => void;
   submitBook: (id: string, text: string) => Promise<void>;
   lookupBook: (id: string) => Promise<void>;
+  lookupCandidates: (id: string) => Promise<void>;
   selectOption: (id: string, book: BookData) => void;
   markAsRead: (id: string) => void;
   markAsUnread: (id: string) => void;
@@ -106,6 +107,22 @@ export function BooksProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Like lookupBook but always returns candidates — used when the auto-resolved book is wrong
+  const lookupCandidates = async (id: string) => {
+    const book = books.find(b => b.id === id);
+    if (!book || !book.originalText.trim()) return;
+    dispatch({ type: 'UPDATE', id, patch: { state: 'SEARCHING' } });
+    const result = await googleBooksLookup(book.originalText, true);
+    if (result.type === 'multi') {
+      dispatch({ type: 'UPDATE', id, patch: { state: 'OPTIONS_FOUND', options: result.options } });
+    } else if (result.type === 'single') {
+      // forceMulti still returned single (only 1 result after filtering) — show as candidates
+      dispatch({ type: 'UPDATE', id, patch: { state: 'OPTIONS_FOUND', options: [result.book] } });
+    } else {
+      dispatch({ type: 'UPDATE', id, patch: { state: 'NOT_FOUND' } });
+    }
+  };
+
   const selectOption = (id: string, book: BookData) => {
     dispatch({ type: 'UPDATE', id, patch: { state: 'FOUND', resolvedTitle: book.title, resolvedAuthor: book.author, resolvedYear: book.year, options: undefined } });
   };
@@ -132,7 +149,7 @@ export function BooksProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <BooksContext.Provider value={{ books, addBook, updateBookText, submitBook, lookupBook, selectOption, markAsRead, markAsUnread, markAsNotFound, deleteBook }}>
+    <BooksContext.Provider value={{ books, addBook, updateBookText, submitBook, lookupBook, lookupCandidates, selectOption, markAsRead, markAsUnread, markAsNotFound, deleteBook }}>
       {children}
     </BooksContext.Provider>
   );

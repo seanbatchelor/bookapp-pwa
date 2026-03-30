@@ -70,7 +70,7 @@ function AddBookInput({ onSubmit, onCancel }: { onSubmit: (text: string) => void
 }
 
 export default function HomeScreen() {
-  const { books, addBook, submitBook, deleteBook, markAsRead, markAsUnread, markAsNotFound, selectOption, lookupBook } = useBooks();
+  const { books, addBook, submitBook, deleteBook, markAsRead, markAsUnread, markAsNotFound, selectOption, lookupBook, lookupCandidates } = useBooks();
   const [selectedBook, setSelectedBook] = useState<BookItem | null>(null);
 
   // To Read: newest added at top (sortOrder desc), seed data has low values so sits below new entries
@@ -180,6 +180,7 @@ export default function HomeScreen() {
         onDelete={() => selectedBook && deleteBook(selectedBook.id)}
         onRetryLookup={() => selectedBook && lookupBook(selectedBook.id)}
         onNoneOfThese={() => selectedBook && markAsNotFound(selectedBook.id)}
+        onFindAlternatives={() => selectedBook && lookupCandidates(selectedBook.id)}
         onSelectOption={(opt) => selectedBook && selectOption(selectedBook.id, opt)}
       />
 

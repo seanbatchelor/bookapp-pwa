@@ -10,6 +10,7 @@ type BookDetailSheetProps = {
   onDelete: () => void;
   onRetryLookup: () => void;
   onNoneOfThese: () => void;
+  onFindAlternatives: () => void;
   onSelectOption: (option: { title: string; author: string; year?: string }) => void;
 };
 
@@ -21,6 +22,7 @@ export function BookDetailSheet({
   onDelete,
   onRetryLookup,
   onNoneOfThese,
+  onFindAlternatives,
   onSelectOption,
 }: BookDetailSheetProps) {
   const isOpen = !!book;
@@ -81,13 +83,13 @@ export function BookDetailSheet({
           <div style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: green[300] }} />
         </div>
 
-        {book && <SheetContent book={book} onClose={onClose} onMarkAsRead={onMarkAsRead} onMarkAsUnread={onMarkAsUnread} onDelete={onDelete} onRetryLookup={onRetryLookup} onNoneOfThese={onNoneOfThese} onSelectOption={onSelectOption} />}
+        {book && <SheetContent book={book} onClose={onClose} onMarkAsRead={onMarkAsRead} onMarkAsUnread={onMarkAsUnread} onDelete={onDelete} onRetryLookup={onRetryLookup} onNoneOfThese={onNoneOfThese} onFindAlternatives={onFindAlternatives} onSelectOption={onSelectOption} />}
       </div>
     </>
   );
 }
 
-function SheetContent({ book, onClose, onMarkAsRead, onMarkAsUnread, onDelete, onRetryLookup, onNoneOfThese, onSelectOption }: Omit<BookDetailSheetProps, 'book'> & { book: BookItem }) {
+function SheetContent({ book, onClose, onMarkAsRead, onMarkAsUnread, onDelete, onRetryLookup, onNoneOfThese, onFindAlternatives, onSelectOption }: Omit<BookDetailSheetProps, 'book'> & { book: BookItem }) {
   const handleDelete = () => { onDelete(); onClose(); };
   const handleMarkAsRead = () => { onMarkAsRead(); onClose(); };
   const handleMarkAsUnread = () => { onMarkAsUnread(); onClose(); };
@@ -105,6 +107,7 @@ function SheetContent({ book, onClose, onMarkAsRead, onMarkAsUnread, onDelete, o
           ) : (
             <ActionButton label="Mark as Unread" onClick={handleMarkAsUnread} />
           )}
+          <ActionButton label="Not the right book?" onClick={() => { onFindAlternatives(); onClose(); }} muted />
           <ActionButton label="Delete" onClick={handleDelete} danger />
         </>
       )}
@@ -199,7 +202,7 @@ function Divider() {
   return <div style={{ height: 1, backgroundColor: green[300], margin: '4px 0 8px' }} />;
 }
 
-function ActionButton({ label, onClick, danger }: { label: string; onClick: () => void; danger?: boolean }) {
+function ActionButton({ label, onClick, danger, muted }: { label: string; onClick: () => void; danger?: boolean; muted?: boolean }) {
   return (
     <button
       onClick={onClick}
@@ -213,7 +216,7 @@ function ActionButton({ label, onClick, danger }: { label: string; onClick: () =
         fontFamily: '"Work Sans", sans-serif',
         fontSize: 17,
         fontWeight: 500,
-        color: danger ? '#b91c1c' : green[700],
+        color: danger ? '#b91c1c' : muted ? '#737373' : green[700],
         cursor: 'pointer',
         WebkitTapHighlightColor: 'transparent',
       }}

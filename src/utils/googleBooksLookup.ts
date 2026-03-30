@@ -48,7 +48,7 @@ function similarity(query: string, title: string): number {
 const AUTO_RESOLVE_THRESHOLD = 0.8;
 
 // ─── Main lookup ──────────────────────────────────────────────────────────────
-export async function googleBooksLookup(query: string): Promise<LookupResult> {
+export async function googleBooksLookup(query: string, forceMulti = false): Promise<LookupResult> {
   try {
     const apiKey = import.meta.env.VITE_GOOGLE_BOOKS_API_KEY;
     const url = `https://www.googleapis.com/books/v1/volumes?q=intitle:${encodeURIComponent(query)}&maxResults=8&key=${apiKey}`;
@@ -80,8 +80,8 @@ export async function googleBooksLookup(query: string): Promise<LookupResult> {
 
     const best = scored[0];
 
-    // Auto-resolve if the top result is clearly the right book
-    if (best.score >= AUTO_RESOLVE_THRESHOLD) {
+    // Auto-resolve if the top result is clearly the right book (unless caller wants candidates)
+    if (!forceMulti && best.score >= AUTO_RESOLVE_THRESHOLD) {
       return { type: 'single', book: best.book };
     }
 
