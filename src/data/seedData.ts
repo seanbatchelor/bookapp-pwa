@@ -1,7 +1,7 @@
 import { BookItem } from '../types/book';
 
 // Flip this to false to test the empty state of the app
-export const USE_SEED_DATA = true;
+export const USE_SEED_DATA = false;
 
 // sortOrder values: To Read list sorts descending so higher = nearer top.
 // Seed values use 100–199 range so new books (Date.now()) always appear above them.
