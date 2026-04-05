@@ -56,8 +56,7 @@ const AUTO_RESOLVE_THRESHOLD = 0.8;
 export async function googleBooksLookup(query: string, forceMulti = false): Promise<LookupResult> {
   try {
     const apiKey = import.meta.env.VITE_GOOGLE_BOOKS_API_KEY;
-    const q = `intitle:${encodeURIComponent(query)}+inauthor:${encodeURIComponent(query)}`;
-    const url = `https://www.googleapis.com/books/v1/volumes?q=${q}&maxResults=10&key=${apiKey}`;
+    const url = `https://www.googleapis.com/books/v1/volumes?q=intitle:${encodeURIComponent(query)}&maxResults=10&key=${apiKey}`;
     const response = await fetch(url);
 
     if (!response.ok) return { type: 'none' };
