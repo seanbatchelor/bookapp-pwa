@@ -78,10 +78,10 @@ export default function HomeScreen() {
     .filter(b => b.state === 'SEARCHING' || (b.matchState !== undefined && b.readState !== 'read'))
     .sort((a, b) => (b.sortOrder ?? 0) - (a.sortOrder ?? 0));
 
-  // Read: oldest marked-as-read at top, most recently read at bottom (movedAt asc)
+  // Read: most recently marked-as-read at top (movedAt desc)
   const readBooks = books
     .filter(b => b.readState === 'read')
-    .sort((a, b) => (a.movedAt ?? 0) - (b.movedAt ?? 0));
+    .sort((a, b) => (b.movedAt ?? 0) - (a.movedAt ?? 0));
   const inputBook = books.find(b => b.state === 'EMPTY' || b.state === 'ACTIVE');
 
   // Keep selectedBook in sync if its state changes while sheet is open
