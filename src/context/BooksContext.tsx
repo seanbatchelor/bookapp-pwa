@@ -140,8 +140,12 @@ export function BooksProvider({ children }: { children: ReactNode }) {
   };
 
   const markAsUnread = (id: string) => {
-    // sortOrder 0 = bottom of To Read (list sorts descending, new books get Date.now())
-    dispatch({ type: 'UPDATE', id, patch: { readState: 'unread', sortOrder: 0, movedAt: undefined } });
+    // Place at bottom of To Read by going one below the current minimum sortOrder
+    const toReadSortOrders = books
+      .filter(x => x.readState !== 'read' && x.matchState !== undefined)
+      .map(x => x.sortOrder ?? 0);
+    const minSortOrder = toReadSortOrders.length === 0 ? 0 : Math.min(...toReadSortOrders);
+    dispatch({ type: 'UPDATE', id, patch: { readState: 'unread', sortOrder: minSortOrder - 1, movedAt: undefined } });
   };
 
   const markAsNotFound = (id: string) => {
