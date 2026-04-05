@@ -84,7 +84,23 @@ export async function googleBooksLookup(query: string, forceMulti = false): Prom
     // Sort best match first
     scored.sort((a: { score: number }, b: { score: number }) => b.score - a.score);
 
-    const best = scored[0];
+    // Deduplicate by normalised title+author — keep earliest edition
+    const seen = new Map<string, { book: BookData; score: number }>();
+    for (const r of scored) {
+      const key = `${normalise(r.book.title)}||${normalise(r.book.author)}`;
+      const existing = seen.get(key);
+      if (!existing) {
+        seen.set(key, r);
+      } else {
+        // Keep whichever has the earlier year (or replace if current has a year and existing doesn't)
+        const existingYear = parseInt(existing.book.year ?? '9999');
+        const currentYear = parseInt(r.book.year ?? '9999');
+        if (currentYear < existingYear) seen.set(key, r);
+      }
+    }
+    const deduped = [...seen.values()].sort((a, b) => b.score - a.score);
+
+    const best = deduped[0];
 
     // Auto-resolve if the top result is clearly the right book (unless caller wants candidates)
     if (!forceMulti && best.score >= AUTO_RESOLVE_THRESHOLD) {
@@ -94,7 +110,7 @@ export async function googleBooksLookup(query: string, forceMulti = false): Prom
     // Otherwise return top 10 ranked candidates for the user to pick
     return {
       type: 'multi',
-      options: scored.slice(0, 10).map((r: { book: BookData }) => r.book),
+      options: deduped.slice(0, 10).map((r: { book: BookData }) => r.book),
     };
   } catch {
     return { type: 'none' };
