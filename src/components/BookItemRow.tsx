@@ -17,7 +17,7 @@ export function BookItemRow({ book, onPress, onToggleRead }: BookItemRowProps) {
   const title = book.resolvedTitle ?? book.originalText ?? '';
   const author = book.resolvedAuthor ?? '';
   const isRead = book.readState === 'read';
-  const showCheckbox = book.matchState === 'matched';
+  const showCheckbox = book.matchState !== undefined;
   const isInteractive = book.matchState !== undefined;
 
   return (
