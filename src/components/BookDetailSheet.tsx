@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { BookItem } from '../types/book';
+import { useEffect, useRef, useState } from 'react';
+import { BookItem, BookData } from '../types/book';
 import { green } from '../theme/colors';
 
 type BookDetailSheetProps = {
@@ -11,6 +11,7 @@ type BookDetailSheetProps = {
   onRetryLookup: () => void;
   onNoneOfThese: () => void;
   onFindAlternatives: () => void;
+  onSearchAgain: (query: string) => void;
   onSelectOption: (option: { title: string; author: string; year?: string }) => void;
 };
 
@@ -23,6 +24,7 @@ export function BookDetailSheet({
   onRetryLookup,
   onNoneOfThese,
   onFindAlternatives,
+  onSearchAgain,
   onSelectOption,
 }: BookDetailSheetProps) {
   const isOpen = !!book;
@@ -83,19 +85,31 @@ export function BookDetailSheet({
           <div style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: green[300] }} />
         </div>
 
-        {book && <SheetContent book={book} onClose={onClose} onMarkAsRead={onMarkAsRead} onMarkAsUnread={onMarkAsUnread} onDelete={onDelete} onRetryLookup={onRetryLookup} onNoneOfThese={onNoneOfThese} onFindAlternatives={onFindAlternatives} onSelectOption={onSelectOption} />}
+        {book && <SheetContent book={book} onClose={onClose} onMarkAsRead={onMarkAsRead} onMarkAsUnread={onMarkAsUnread} onDelete={onDelete} onRetryLookup={onRetryLookup} onNoneOfThese={onNoneOfThese} onFindAlternatives={onFindAlternatives} onSearchAgain={onSearchAgain} onSelectOption={onSelectOption} />}
       </div>
     </>
   );
 }
 
-function SheetContent({ book, onClose, onMarkAsRead, onMarkAsUnread, onDelete, onRetryLookup, onNoneOfThese, onFindAlternatives, onSelectOption }: Omit<BookDetailSheetProps, 'book'> & { book: BookItem }) {
+function SheetContent({ book, onClose, onMarkAsRead, onMarkAsUnread, onDelete, onNoneOfThese, onFindAlternatives, onSearchAgain, onSelectOption }: Omit<BookDetailSheetProps, 'book'> & { book: BookItem }) {
   const handleDelete = () => { onDelete(); onClose(); };
   const handleMarkAsRead = () => { onMarkAsRead(); onClose(); };
   const handleMarkAsUnread = () => { onMarkAsUnread(); onClose(); };
 
   return (
     <div style={{ padding: '12px 24px 0' }}>
+
+      {/* Searching — loading indicator while a lookup is in flight */}
+      {book.state === 'SEARCHING' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 8, paddingBottom: 24 }}>
+          <span style={{
+            display: 'inline-block', width: 16, height: 16, borderRadius: '50%',
+            border: '2px solid #94E1B0', borderTopColor: '#298E4E',
+            animation: 'spin 0.7s linear infinite', flexShrink: 0,
+          }} />
+          <span style={{ fontFamily: '"Work Sans", sans-serif', fontSize: 15, color: '#737373' }}>Looking up…</span>
+        </div>
+      )}
 
       {/* matched state */}
       {book.matchState === 'matched' && (
@@ -112,53 +126,132 @@ function SheetContent({ book, onClose, onMarkAsRead, onMarkAsUnread, onDelete, o
         </>
       )}
 
-      {/* candidates state — pick from list */}
-      {book.matchState === 'candidates' && book.options && (
-        <>
-          <SheetTitle>Which book did you mean?</SheetTitle>
-          <p style={{ fontFamily: '"Work Sans", sans-serif', fontSize: 13, color: '#737373', marginTop: 2, marginBottom: 16 }}>
-            "{book.originalText}"
-          </p>
-          {book.options.map((opt, i) => (
-            <button
-              key={i}
-              onClick={() => { onSelectOption(opt); onClose(); }}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                width: '100%',
-                textAlign: 'left',
-                background: 'transparent',
-                border: `1px solid ${green[300]}`,
-                borderRadius: 10,
-                padding: '10px 14px',
-                marginBottom: 8,
-                cursor: 'pointer',
-                WebkitTapHighlightColor: 'transparent',
-              }}
-            >
-              <span style={{ fontFamily: '"Work Sans", sans-serif', fontSize: 15, fontWeight: 500, color: '#171717' }}>{opt.title}</span>
-              <span style={{ fontFamily: '"Work Sans", sans-serif', fontSize: 13, color: '#525252', marginTop: 2 }}>{opt.author}{opt.year ? ` · ${opt.year}` : ''}</span>
-            </button>
-          ))}
-          <Divider />
-          <ActionButton label="None of these" onClick={() => { onNoneOfThese(); }} />
-          <ActionButton label="Delete" onClick={handleDelete} danger />
-        </>
-      )}
-
-      {/* not_found state */}
-      {book.matchState === 'not_found' && (
-        <>
-          <SheetTitle>Not found</SheetTitle>
-          <p style={{ fontFamily: '"Work Sans", sans-serif', fontSize: 15, color: '#737373', marginBottom: 20 }}>
-            We couldn't find "{book.originalText}" in Google Books.
-          </p>
-          <ActionButton label="Try Again" onClick={() => { onRetryLookup(); onClose(); }} />
-          <ActionButton label="Delete" onClick={handleDelete} danger />
-        </>
+      {/* candidates / not_found — searchable picker */}
+      {(book.matchState === 'candidates' || book.matchState === 'not_found') && (
+        <BookPicker
+          book={book}
+          onSelectOption={(opt) => { onSelectOption(opt); onClose(); }}
+          onNoneOfThese={onNoneOfThese}
+          onSearchAgain={onSearchAgain}
+          onDelete={handleDelete}
+        />
       )}
     </div>
+  );
+}
+
+function BookPicker({ book, onSelectOption, onNoneOfThese, onSearchAgain, onDelete }: {
+  book: BookItem;
+  onSelectOption: (opt: BookData) => void;
+  onNoneOfThese: () => void;
+  onSearchAgain: (query: string) => void;
+  onDelete: () => void;
+}) {
+  const [filterText, setFilterText] = useState('');
+  const [showRefine, setShowRefine] = useState(book.matchState === 'not_found');
+  const [refineText, setRefineText] = useState(book.originalText);
+
+  const candidates = book.options ?? [];
+  const filtered = filterText
+    ? candidates.filter(opt =>
+        opt.title.toLowerCase().includes(filterText.toLowerCase()) ||
+        opt.author.toLowerCase().includes(filterText.toLowerCase())
+      )
+    : candidates;
+
+  const handleSearchAgain = () => {
+    if (refineText.trim()) onSearchAgain(refineText.trim());
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    border: `1px solid ${green[300]}`,
+    borderRadius: 10,
+    padding: '10px 14px',
+    fontFamily: '"Work Sans", sans-serif',
+    fontSize: 15,
+    color: '#171717',
+    backgroundColor: 'transparent',
+    outline: 'none',
+    boxSizing: 'border-box',
+  };
+
+  return (
+    <>
+      <SheetTitle>{book.matchState === 'not_found' ? 'Search again' : 'Which book did you mean?'}</SheetTitle>
+
+      {/* Filter input */}
+      {candidates.length > 0 && (
+        <input
+          value={filterText}
+          onChange={e => setFilterText(e.target.value)}
+          placeholder="Filter results…"
+          style={{ ...inputStyle, marginBottom: 12 }}
+        />
+      )}
+
+      {/* Candidates list */}
+      <div style={{ maxHeight: '40vh', overflowY: 'auto', marginBottom: 4 }}>
+        {filtered.length === 0 && candidates.length > 0 && (
+          <p style={{ fontFamily: '"Work Sans", sans-serif', fontSize: 14, color: '#737373', margin: '0 0 8px' }}>
+            No matches for "{filterText}"
+          </p>
+        )}
+        {filtered.length === 0 && candidates.length === 0 && (
+          <p style={{ fontFamily: '"Work Sans", sans-serif', fontSize: 14, color: '#737373', margin: '0 0 8px' }}>
+            We couldn't find "{book.originalText}". Try a different search below.
+          </p>
+        )}
+        {filtered.map((opt, i) => (
+          <button
+            key={i}
+            onClick={() => onSelectOption(opt)}
+            style={{
+              display: 'flex', flexDirection: 'column', width: '100%', textAlign: 'left',
+              background: 'transparent', border: `1px solid ${green[300]}`, borderRadius: 10,
+              padding: '10px 14px', marginBottom: 8, cursor: 'pointer',
+              WebkitTapHighlightColor: 'transparent',
+            }}
+          >
+            <span style={{ fontFamily: '"Work Sans", sans-serif', fontSize: 15, fontWeight: 500, color: '#171717' }}>{opt.title}</span>
+            <span style={{ fontFamily: '"Work Sans", sans-serif', fontSize: 13, color: '#525252', marginTop: 2 }}>
+              {opt.author}{opt.year ? ` · ${opt.year}` : ''}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      <Divider />
+
+      {/* Search again */}
+      {!showRefine ? (
+        <ActionButton label="Search again" onClick={() => setShowRefine(true)} muted />
+      ) : (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '8px 0' }}>
+          <input
+            value={refineText}
+            onChange={e => setRefineText(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleSearchAgain()}
+            autoFocus
+            style={{ ...inputStyle, flex: 1 }}
+          />
+          <button
+            onClick={handleSearchAgain}
+            style={{
+              flexShrink: 0, padding: '10px 16px', border: 'none', borderRadius: 10,
+              backgroundColor: green[600], color: '#fff',
+              fontFamily: '"Work Sans", sans-serif', fontSize: 15, fontWeight: 600,
+              cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+            }}
+          >
+            Go
+          </button>
+        </div>
+      )}
+
+      <ActionButton label="None of these" onClick={onNoneOfThese} />
+      <ActionButton label="Delete" onClick={onDelete} danger />
+    </>
   );
 }
 

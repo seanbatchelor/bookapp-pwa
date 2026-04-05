@@ -181,6 +181,7 @@ export default function HomeScreen() {
         onRetryLookup={() => selectedBook && lookupBook(selectedBook.id)}
         onNoneOfThese={() => selectedBook && markAsNotFound(selectedBook.id)}
         onFindAlternatives={() => selectedBook && lookupCandidates(selectedBook.id)}
+        onSearchAgain={(query) => selectedBook && lookupCandidates(selectedBook.id, query)}
         onSelectOption={(opt) => selectedBook && selectOption(selectedBook.id, opt)}
       />
 

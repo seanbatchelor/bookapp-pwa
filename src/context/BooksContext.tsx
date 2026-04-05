@@ -21,7 +21,7 @@ type BooksContextType = {
   updateBookText: (id: string, text: string) => void;
   submitBook: (id: string, text: string) => Promise<void>;
   lookupBook: (id: string) => Promise<void>;
-  lookupCandidates: (id: string) => Promise<void>;
+  lookupCandidates: (id: string, customQuery?: string) => Promise<void>;
   selectOption: (id: string, book: BookData) => void;
   markAsRead: (id: string) => void;
   markAsUnread: (id: string) => void;
@@ -105,12 +105,17 @@ export function BooksProvider({ children }: { children: ReactNode }) {
     applyLookupResult(id, result, book.readState);
   };
 
-  // Like lookupBook but always returns candidates — used when the auto-resolved book is wrong
-  const lookupCandidates = async (id: string) => {
+  // Like lookupBook but always returns candidates — used when the auto-resolved book is wrong.
+  // Accepts an optional customQuery to refine the search (updates originalText too).
+  const lookupCandidates = async (id: string, customQuery?: string) => {
     const book = books.find(b => b.id === id);
-    if (!book || !book.originalText.trim()) return;
-    dispatch({ type: 'UPDATE', id, patch: { state: 'SEARCHING' } });
-    const result = await googleBooksLookup(book.originalText, true);
+    if (!book) return;
+    const query = customQuery ?? book.originalText;
+    if (!query.trim()) return;
+    const patch: Partial<BookItem> = { state: 'SEARCHING' };
+    if (customQuery) patch.originalText = customQuery;
+    dispatch({ type: 'UPDATE', id, patch });
+    const result = await googleBooksLookup(query, true);
     if (result.type === 'multi') {
       dispatch({ type: 'UPDATE', id, patch: { state: undefined, matchState: 'candidates', options: result.options } });
     } else if (result.type === 'single') {
