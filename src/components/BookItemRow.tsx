@@ -1,4 +1,4 @@
-import { BookItem } from '../types/book';
+import { MatchState, BookItem } from '../types/book';
 import { green } from '../theme/colors';
 
 type BookItemRowProps = {
@@ -7,19 +7,18 @@ type BookItemRowProps = {
   onToggleRead?: () => void;
 };
 
-const STATE_BADGE: Partial<Record<BookItem['state'], { label: string; color: string; bg: string }>> = {
-  SEARCHING:     { label: 'Looking up…',    color: '#737373', bg: 'transparent' },
-  OPTIONS_FOUND: { label: 'Multiple matches', color: '#92400e', bg: '#fef3c7' },
-  NOT_FOUND:     { label: 'Not found',      color: '#b91c1c', bg: '#fef2f2' },
+const MATCH_BADGE: Partial<Record<MatchState, { label: string; color: string; bg: string }>> = {
+  candidates: { label: 'Multiple matches', color: '#92400e', bg: '#fef3c7' },
+  not_found:  { label: 'Not found',        color: '#b91c1c', bg: '#fef2f2' },
 };
 
 export function BookItemRow({ book, onPress, onToggleRead }: BookItemRowProps) {
-  const badge = STATE_BADGE[book.state];
+  const badge = book.matchState ? MATCH_BADGE[book.matchState] : undefined;
   const title = book.resolvedTitle ?? book.originalText ?? '';
   const author = book.resolvedAuthor ?? '';
-  const isRead = book.state === 'READ';
-  const showCheckbox = book.state === 'FOUND' || book.state === 'READ';
-  const isInteractive = book.state === 'FOUND' || book.state === 'READ' || book.state === 'OPTIONS_FOUND' || book.state === 'NOT_FOUND';
+  const isRead = book.readState === 'read';
+  const showCheckbox = book.matchState === 'matched';
+  const isInteractive = book.matchState !== undefined;
 
   return (
     <div

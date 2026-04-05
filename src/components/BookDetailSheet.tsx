@@ -97,12 +97,12 @@ function SheetContent({ book, onClose, onMarkAsRead, onMarkAsUnread, onDelete, o
   return (
     <div style={{ padding: '12px 24px 0' }}>
 
-      {/* FOUND / READ state */}
-      {(book.state === 'FOUND' || book.state === 'READ') && (
+      {/* matched state */}
+      {book.matchState === 'matched' && (
         <>
           <BookMeta book={book} />
           <Divider />
-          {book.state === 'FOUND' ? (
+          {book.readState !== 'read' ? (
             <ActionButton label="Mark as Read" onClick={handleMarkAsRead} />
           ) : (
             <ActionButton label="Mark as Unread" onClick={handleMarkAsUnread} />
@@ -112,8 +112,8 @@ function SheetContent({ book, onClose, onMarkAsRead, onMarkAsUnread, onDelete, o
         </>
       )}
 
-      {/* OPTIONS_FOUND state — pick from candidates */}
-      {book.state === 'OPTIONS_FOUND' && book.options && (
+      {/* candidates state — pick from list */}
+      {book.matchState === 'candidates' && book.options && (
         <>
           <SheetTitle>Which book did you mean?</SheetTitle>
           <p style={{ fontFamily: '"Work Sans", sans-serif', fontSize: 13, color: '#737373', marginTop: 2, marginBottom: 16 }}>
@@ -147,8 +147,8 @@ function SheetContent({ book, onClose, onMarkAsRead, onMarkAsUnread, onDelete, o
         </>
       )}
 
-      {/* NOT_FOUND state */}
-      {book.state === 'NOT_FOUND' && (
+      {/* not_found state */}
+      {book.matchState === 'not_found' && (
         <>
           <SheetTitle>Not found</SheetTitle>
           <p style={{ fontFamily: '"Work Sans", sans-serif', fontSize: 15, color: '#737373', marginBottom: 20 }}>

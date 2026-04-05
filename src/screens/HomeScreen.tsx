@@ -73,14 +73,14 @@ export default function HomeScreen() {
   const { books, addBook, submitBook, deleteBook, markAsRead, markAsUnread, markAsNotFound, selectOption, lookupBook, lookupCandidates } = useBooks();
   const [selectedBook, setSelectedBook] = useState<BookItem | null>(null);
 
-  // To Read: newest added at top (sortOrder desc), seed data has low values so sits below new entries
+  // To Read: searching + resolved-but-unread; newest added at top (sortOrder desc)
   const toRead = books
-    .filter(b => b.state !== 'READ' && b.state !== 'EMPTY' && b.state !== 'ACTIVE')
+    .filter(b => b.state === 'SEARCHING' || (b.matchState !== undefined && b.readState !== 'read'))
     .sort((a, b) => (b.sortOrder ?? 0) - (a.sortOrder ?? 0));
 
   // Read: oldest marked-as-read at top, most recently read at bottom (movedAt asc)
   const readBooks = books
-    .filter(b => b.state === 'READ')
+    .filter(b => b.readState === 'read')
     .sort((a, b) => (a.movedAt ?? 0) - (b.movedAt ?? 0));
   const inputBook = books.find(b => b.state === 'EMPTY' || b.state === 'ACTIVE');
 

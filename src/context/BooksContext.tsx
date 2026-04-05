@@ -1,5 +1,5 @@
 import { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
-import { BookItem, BookData } from '../types/book';
+import { BookItem, BookData, ReadState } from '../types/book';
 import { googleBooksLookup } from '../utils/googleBooksLookup';
 import { USE_SEED_DATA, SEED_BOOKS } from '../data/seedData';
 
@@ -58,7 +58,7 @@ export function BooksProvider({ children }: { children: ReactNode }) {
 
   // Persist to localStorage whenever books changes
   useEffect(() => {
-    // Don't persist EMPTY/ACTIVE/SEARCHING rows — they're transient input state
+    // Don't persist transient input rows — only save books that have completed lookup
     const toSave = books.filter(b => b.state !== 'EMPTY' && b.state !== 'ACTIVE' && b.state !== 'SEARCHING');
     localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
   }, [books]);
@@ -78,19 +78,23 @@ export function BooksProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'UPDATE', id, patch: { originalText: text, state: text ? 'ACTIVE' : 'EMPTY' } });
   };
 
-  // Submit + immediate lookup in one atomic action — no UNSEARCHED state needed
+  function applyLookupResult(id: string, result: Awaited<ReturnType<typeof googleBooksLookup>>, currentReadState?: ReadState) {
+    if (result.type === 'single') {
+      dispatch({ type: 'UPDATE', id, patch: { state: undefined, matchState: 'matched', readState: currentReadState ?? 'unread', resolvedTitle: result.book.title, resolvedAuthor: result.book.author, resolvedYear: result.book.year, options: undefined } });
+    } else if (result.type === 'multi') {
+      dispatch({ type: 'UPDATE', id, patch: { state: undefined, matchState: 'candidates', readState: currentReadState ?? 'unread', options: result.options } });
+    } else {
+      dispatch({ type: 'UPDATE', id, patch: { state: undefined, matchState: 'not_found', readState: currentReadState ?? 'unread' } });
+    }
+  }
+
+  // Submit + immediate lookup in one atomic action
   const submitBook = async (id: string, text: string) => {
     const trimmed = text.trim();
     if (!trimmed) return;
     dispatch({ type: 'UPDATE', id, patch: { originalText: trimmed, state: 'SEARCHING', sortOrder: Date.now() } });
     const result = await googleBooksLookup(trimmed);
-    if (result.type === 'single') {
-      dispatch({ type: 'UPDATE', id, patch: { state: 'FOUND', resolvedTitle: result.book.title, resolvedAuthor: result.book.author, resolvedYear: result.book.year, options: undefined } });
-    } else if (result.type === 'multi') {
-      dispatch({ type: 'UPDATE', id, patch: { state: 'OPTIONS_FOUND', options: result.options } });
-    } else {
-      dispatch({ type: 'UPDATE', id, patch: { state: 'NOT_FOUND' } });
-    }
+    applyLookupResult(id, result);
   };
 
   const lookupBook = async (id: string) => {
@@ -98,13 +102,7 @@ export function BooksProvider({ children }: { children: ReactNode }) {
     if (!book || !book.originalText.trim()) return;
     dispatch({ type: 'UPDATE', id, patch: { state: 'SEARCHING' } });
     const result = await googleBooksLookup(book.originalText);
-    if (result.type === 'single') {
-      dispatch({ type: 'UPDATE', id, patch: { state: 'FOUND', resolvedTitle: result.book.title, resolvedAuthor: result.book.author, resolvedYear: result.book.year, options: undefined } });
-    } else if (result.type === 'multi') {
-      dispatch({ type: 'UPDATE', id, patch: { state: 'OPTIONS_FOUND', options: result.options } });
-    } else {
-      dispatch({ type: 'UPDATE', id, patch: { state: 'NOT_FOUND' } });
-    }
+    applyLookupResult(id, result, book.readState);
   };
 
   // Like lookupBook but always returns candidates — used when the auto-resolved book is wrong
@@ -114,34 +112,35 @@ export function BooksProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'UPDATE', id, patch: { state: 'SEARCHING' } });
     const result = await googleBooksLookup(book.originalText, true);
     if (result.type === 'multi') {
-      dispatch({ type: 'UPDATE', id, patch: { state: 'OPTIONS_FOUND', options: result.options } });
+      dispatch({ type: 'UPDATE', id, patch: { state: undefined, matchState: 'candidates', options: result.options } });
     } else if (result.type === 'single') {
       // forceMulti still returned single (only 1 result after filtering) — show as candidates
-      dispatch({ type: 'UPDATE', id, patch: { state: 'OPTIONS_FOUND', options: [result.book] } });
+      dispatch({ type: 'UPDATE', id, patch: { state: undefined, matchState: 'candidates', options: [result.book] } });
     } else {
-      dispatch({ type: 'UPDATE', id, patch: { state: 'NOT_FOUND' } });
+      dispatch({ type: 'UPDATE', id, patch: { state: undefined, matchState: 'not_found' } });
     }
   };
 
   const selectOption = (id: string, book: BookData) => {
-    dispatch({ type: 'UPDATE', id, patch: { state: 'FOUND', resolvedTitle: book.title, resolvedAuthor: book.author, resolvedYear: book.year, options: undefined } });
+    const current = books.find(b => b.id === id);
+    dispatch({ type: 'UPDATE', id, patch: { matchState: 'matched', resolvedTitle: book.title, resolvedAuthor: book.author, resolvedYear: book.year, options: undefined, readState: current?.readState ?? 'unread' } });
   };
 
   const markAsRead = (id: string) => {
     const ts = Date.now();
     // movedAt used to sort Read list — ascending, so highest movedAt = bottom (most recently read)
-    const readMovedAts = books.filter(x => x.state === 'READ').map(x => x.movedAt ?? 0);
+    const readMovedAts = books.filter(x => x.readState === 'read').map(x => x.movedAt ?? 0);
     const maxMovedAt = readMovedAts.length === 0 ? ts : Math.max(...readMovedAts);
-    dispatch({ type: 'UPDATE', id, patch: { state: 'READ', sortOrder: ts, movedAt: maxMovedAt + 1 } });
+    dispatch({ type: 'UPDATE', id, patch: { readState: 'read', sortOrder: ts, movedAt: maxMovedAt + 1 } });
   };
 
   const markAsUnread = (id: string) => {
     // sortOrder 0 = bottom of To Read (list sorts descending, new books get Date.now())
-    dispatch({ type: 'UPDATE', id, patch: { state: 'FOUND', sortOrder: 0, movedAt: undefined } });
+    dispatch({ type: 'UPDATE', id, patch: { readState: 'unread', sortOrder: 0, movedAt: undefined } });
   };
 
   const markAsNotFound = (id: string) => {
-    dispatch({ type: 'UPDATE', id, patch: { state: 'NOT_FOUND', options: undefined } });
+    dispatch({ type: 'UPDATE', id, patch: { matchState: 'not_found', options: undefined } });
   };
 
   const deleteBook = (id: string) => {

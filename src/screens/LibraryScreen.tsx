@@ -111,8 +111,8 @@ export default function LibraryScreen() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const sectionRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
-  // Resolved books only
-  const resolved = books.filter(b => b.state === 'FOUND' || b.state === 'READ');
+  // Matched books only (both unread and read)
+  const resolved = books.filter(b => b.matchState === 'matched');
 
   // ── Books tab data ──
   const sortedBooks = [...resolved]
