@@ -56,7 +56,7 @@ const AUTO_RESOLVE_THRESHOLD = 0.8;
 export async function googleBooksLookup(query: string, forceMulti = false): Promise<LookupResult> {
   try {
     const apiKey = import.meta.env.VITE_GOOGLE_BOOKS_API_KEY;
-    const url = `https://www.googleapis.com/books/v1/volumes?q=intitle:${encodeURIComponent(query)}&maxResults=10&key=${apiKey}`;
+    const url = `https://www.googleapis.com/books/v1/volumes?q=intitle:${encodeURIComponent(query)}&maxResults=20&key=${apiKey}`;
     const response = await fetch(url);
 
     if (!response.ok) return { type: 'none' };
@@ -107,10 +107,10 @@ export async function googleBooksLookup(query: string, forceMulti = false): Prom
       return { type: 'single', book: best.book };
     }
 
-    // Otherwise return top 10 ranked candidates for the user to pick
+    // Otherwise return top 20 ranked candidates for the user to pick
     return {
       type: 'multi',
-      options: deduped.slice(0, 10).map((r: { book: BookData }) => r.book),
+      options: deduped.slice(0, 20).map((r: { book: BookData }) => r.book),
     };
   } catch {
     return { type: 'none' };
