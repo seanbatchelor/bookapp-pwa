@@ -30,7 +30,7 @@ function dice(a: string, b: string): number {
   return (2 * overlap) / (ba.size + bb.size);
 }
 
-function similarity(query: string, title: string): number {
+function titleSimilarity(query: string, title: string): number {
   const q = normalise(query);
   const t = normalise(title);
 
@@ -44,6 +44,11 @@ function similarity(query: string, title: string): number {
   return dice(q, t);
 }
 
+// Combined title + author score — title dominates (70/30)
+function score(query: string, title: string, author: string): number {
+  return titleSimilarity(query, title) * 0.7 + dice(normalise(query), normalise(author)) * 0.3;
+}
+
 // Auto-resolve threshold: score must be at or above this to skip the picker
 const AUTO_RESOLVE_THRESHOLD = 0.8;
 
@@ -51,7 +56,8 @@ const AUTO_RESOLVE_THRESHOLD = 0.8;
 export async function googleBooksLookup(query: string, forceMulti = false): Promise<LookupResult> {
   try {
     const apiKey = import.meta.env.VITE_GOOGLE_BOOKS_API_KEY;
-    const url = `https://www.googleapis.com/books/v1/volumes?q=intitle:${encodeURIComponent(query)}&maxResults=8&key=${apiKey}`;
+    const q = `intitle:${encodeURIComponent(query)}+inauthor:${encodeURIComponent(query)}`;
+    const url = `https://www.googleapis.com/books/v1/volumes?q=${q}&maxResults=10&key=${apiKey}`;
     const response = await fetch(url);
 
     if (!response.ok) return { type: 'none' };
@@ -63,14 +69,15 @@ export async function googleBooksLookup(query: string, forceMulti = false): Prom
     const scored: Array<{ book: BookData; score: number }> = data.items
       .map((item: any) => {
         const title: string = item.volumeInfo.title ?? '';
+        const author: string = item.volumeInfo.authors?.[0] ?? 'Unknown Author';
         const book: BookData = {
           title,
-          author: item.volumeInfo.authors?.[0] ?? 'Unknown Author',
+          author,
           year: item.volumeInfo.publishedDate?.split('-')[0],
         };
-        return { book, score: similarity(query, title) };
+        return { book, score: score(query, title, author) };
       })
-      // Drop results with no meaningful title similarity at all
+      // Drop results with no meaningful similarity at all
       .filter((r: { book: BookData; score: number }) => r.score > 0.1);
 
     if (scored.length === 0) return { type: 'none' };
@@ -85,10 +92,10 @@ export async function googleBooksLookup(query: string, forceMulti = false): Prom
       return { type: 'single', book: best.book };
     }
 
-    // Otherwise return top 5 ranked candidates for the user to pick
+    // Otherwise return top 10 ranked candidates for the user to pick
     return {
       type: 'multi',
-      options: scored.slice(0, 5).map((r: { book: BookData }) => r.book),
+      options: scored.slice(0, 10).map((r: { book: BookData }) => r.book),
     };
   } catch {
     return { type: 'none' };
