@@ -11,25 +11,18 @@ export default function App() {
 
   return (
     <BooksProvider>
-    <div
-      style={{
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        backgroundColor: '#C3EFD3',
-      }}
-    >
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <div style={{ flex: 1, minHeight: 0, display: activeTab === 'Home' ? 'flex' : 'none', flexDirection: 'column' }}>
-          <HomeScreen />
+      <div className="h-full flex flex-col bg-background">
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+          <div className={`flex-1 min-h-0 flex-col ${activeTab === 'Home' ? 'flex' : 'hidden'}`}>
+            <HomeScreen />
+          </div>
+          <div className={`flex-1 min-h-0 flex-col ${activeTab === 'Library' ? 'flex' : 'hidden'}`}>
+            <LibraryScreen />
+          </div>
         </div>
-        <div style={{ flex: 1, minHeight: 0, display: activeTab === 'Library' ? 'flex' : 'none', flexDirection: 'column' }}>
-          <LibraryScreen />
-        </div>
-      </div>
 
-      <FloatingNav activeTab={activeTab} onNavigateToTab={setActiveTab} />
-    </div>
+        <FloatingNav activeTab={activeTab} onNavigateToTab={setActiveTab} />
+      </div>
     </BooksProvider>
   );
 }

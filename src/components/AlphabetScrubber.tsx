@@ -1,5 +1,4 @@
 import { useRef } from 'react';
-import { green } from '../theme/colors';
 
 const ALL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
@@ -50,35 +49,12 @@ export function AlphabetScrubber({ activeLetters, onLetterSelect }: AlphabetScru
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
-      style={{
-        position: 'absolute',
-        right: 0,
-        top: 0,
-        bottom: 0,
-        width: 28,
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-evenly',
-        alignItems: 'center',
-        touchAction: 'none',    // prevents native scroll hijacking the drag
-        userSelect: 'none',
-        WebkitUserSelect: 'none',
-        cursor: 'default',
-        paddingTop: 8,
-        paddingBottom: 80,       // clear the nav
-        zIndex: 10,
-      }}
+      className="absolute right-0 top-0 bottom-0 w-7 flex flex-col justify-evenly items-center touch-none select-none [-webkit-user-select:none] cursor-default pt-2 pb-20 z-10"
     >
       {ALL_LETTERS.map(letter => (
         <span
           key={letter}
-          style={{
-            fontFamily: '"Work Sans", sans-serif',
-            fontSize: 10,
-            fontWeight: 600,
-            lineHeight: 1,
-            color: activeLetters.has(letter) ? green[700] : green[300],
-          }}
+          className={`font-sans text-[10px] font-semibold leading-none ${activeLetters.has(letter) ? 'text-green-700' : 'text-green-300'}`}
         >
           {letter}
         </span>

@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react';
 import { useBooks } from '../context/BooksContext';
 import { AlphabetScrubber } from '../components/AlphabetScrubber';
-import { green } from '../theme/colors';
 
 type LibraryTab = 'Books' | 'Authors';
 
@@ -23,21 +22,11 @@ function SectionHeader({
   sectionRef: (el: HTMLDivElement | null) => void;
 }) {
   return (
-    <div
-      ref={sectionRef}
-      style={{ paddingLeft: 20, paddingRight: 36, paddingTop: 20, paddingBottom: 6 }}
-    >
-      <span style={{
-        fontFamily: '"Work Sans", sans-serif',
-        fontSize: 13,
-        fontWeight: 700,
-        letterSpacing: '0.06em',
-        textTransform: 'uppercase',
-        color: green[700],
-      }}>
+    <div ref={sectionRef} className="pl-5 pr-9 pt-5 pb-1.5">
+      <span className="font-sans text-xs font-bold tracking-[0.06em] uppercase text-green-700">
         {letter}
       </span>
-      <div style={{ height: 1, backgroundColor: green[300], marginTop: 6 }} />
+      <div className="h-px bg-green-300 mt-1.5" />
     </div>
   );
 }
@@ -45,33 +34,12 @@ function SectionHeader({
 // ─── Row ──────────────────────────────────────────────────────────────────────
 function LibraryRow({ primary, secondary }: { primary: string; secondary?: string }) {
   return (
-    <div style={{
-      paddingLeft: 20,
-      paddingRight: 36,
-      paddingTop: 10,
-      paddingBottom: 10,
-      minHeight: 44,
-      display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'center',
-    }}>
-      <span style={{
-        fontFamily: '"Work Sans", sans-serif',
-        fontSize: 15,
-        fontWeight: 500,
-        color: '#171717',
-        lineHeight: '20px',
-      }}>
+    <div className="pl-5 pr-9 py-2.5 min-h-[44px] flex flex-col justify-center">
+      <span className="font-sans text-sm font-medium text-foreground leading-5">
         {primary}
       </span>
       {secondary && (
-        <span style={{
-          fontFamily: '"Work Sans", sans-serif',
-          fontSize: 13,
-          color: '#525252',
-          lineHeight: '16px',
-          marginTop: 2,
-        }}>
+        <span className="font-sans text-xs text-neutral leading-4 mt-0.5">
           {secondary}
         </span>
       )}
@@ -84,20 +52,7 @@ function TabPill({ active, label, onClick }: { active: boolean; label: string; o
   return (
     <button
       onClick={onClick}
-      style={{
-        flex: 1,
-        padding: '8px 0',
-        border: 'none',
-        borderRadius: 8,
-        backgroundColor: active ? green[500] : 'transparent',
-        color: active ? '#ffffff' : green[700],
-        fontFamily: '"Work Sans", sans-serif',
-        fontSize: 14,
-        fontWeight: 600,
-        cursor: 'pointer',
-        transition: 'background-color 0.15s',
-        WebkitTapHighlightColor: 'transparent',
-      }}
+      className={`flex-1 py-2 border-0 rounded-lg font-sans text-[14px] font-semibold cursor-pointer transition-colors duration-150 [-webkit-tap-highlight-color:transparent] ${active ? 'bg-primary text-white' : 'bg-transparent text-green-700'}`}
     >
       {label}
     </button>
@@ -162,40 +117,21 @@ export default function LibraryScreen() {
   const isEmpty = Object.keys(sections).length === 0;
 
   return (
-    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+    <div className="flex-1 min-h-0 flex flex-col">
       {/* Tab switcher */}
-      <div style={{
-        display: 'flex',
-        gap: 4,
-        margin: '16px 20px 8px',
-        padding: 4,
-        backgroundColor: green[300],
-        borderRadius: 10,
-      }}>
+      <div className="flex gap-1 mx-5 mt-4 mb-2 p-1 bg-green-300 rounded-[10px]">
         <TabPill active={tab === 'Books'}   label="Books"   onClick={() => setTab('Books')} />
         <TabPill active={tab === 'Authors'} label="Authors" onClick={() => setTab('Authors')} />
       </div>
 
       {/* List + scrubber */}
-      <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+      <div className="flex-1 min-h-0 relative">
         <div
           ref={scrollRef}
-          style={{
-            position: 'absolute',
-            inset: 0,
-            overflowY: 'auto',
-            WebkitOverflowScrolling: 'touch',
-            paddingBottom: 100,
-          }}
+          className="absolute inset-0 overflow-y-auto [-webkit-overflow-scrolling:touch] pb-[100px]"
         >
           {isEmpty ? (
-            <p style={{
-              paddingLeft: 20,
-              paddingTop: 24,
-              fontFamily: '"Work Sans", sans-serif',
-              fontSize: 15,
-              color: '#737373',
-            }}>
+            <p className="pl-5 pt-6 font-sans text-sm text-[#737373]">
               {tab === 'Books' ? 'No resolved books yet.' : 'No authors yet.'}
             </p>
           ) : (

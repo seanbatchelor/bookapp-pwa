@@ -3,22 +3,13 @@ import { useBooks } from '../context/BooksContext';
 import { BookItemRow } from '../components/BookItemRow';
 import { BookDetailSheet } from '../components/BookDetailSheet';
 import { BookItem } from '../types/book';
-import { green } from '../theme/colors';
 
 function SectionHeader({ title }: { title: string }) {
   return (
-    <div style={{ paddingLeft: 20, paddingRight: 20, paddingTop: 24, paddingBottom: 8 }}>
-      <span style={{
-        fontFamily: '"Work Sans", sans-serif',
-        fontSize: 13,
-        fontWeight: 700,
-        letterSpacing: '0.06em',
-        textTransform: 'uppercase',
-        color: green[700],
-      }}>
+    <div className="px-4 pt-6">
+      <span className="font-sans text-xs font-medium tracking-[0.06em] uppercase text-green-700">
         {title}
       </span>
-      <div style={{ height: 1, backgroundColor: green[300], marginTop: 6 }} />
     </div>
   );
 }
@@ -46,24 +37,14 @@ function AddBookInput({ onSubmit, onCancel }: { onSubmit: (text: string) => void
   };
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', minHeight: 52, paddingLeft: 20, paddingRight: 20 }}>
+    <div className="flex items-center min-h-[52px] px-5">
       <input
         ref={inputRef}
         type="text"
         placeholder="Book title, author…"
         onKeyDown={handleKeyDown}
         onBlur={handleBlur}
-        style={{
-          flex: 1,
-          border: 'none',
-          outline: 'none',
-          background: 'transparent',
-          fontFamily: '"Work Sans", sans-serif',
-          fontSize: 17,
-          fontWeight: 400,
-          color: '#171717',
-          caretColor: green[600],
-        }}
+        className="flex-1 border-0 outline-none bg-transparent font-sans text-base font-normal text-foreground caret-primaryDark"
       />
     </div>
   );
@@ -102,9 +83,9 @@ export default function HomeScreen() {
   };
 
   return (
-    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
+    <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative">
       {/* Scrollable list */}
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 100 }}>
+      <div className="flex-1 min-h-0 overflow-y-auto [-webkit-overflow-scrolling:touch] pb-[100px]">
         <SectionHeader title="To Read" />
 
         {inputBook && (
@@ -112,7 +93,7 @@ export default function HomeScreen() {
         )}
 
         {toRead.length === 0 && !inputBook && (
-          <p style={{ paddingLeft: 20, paddingTop: 12, fontFamily: '"Work Sans", sans-serif', fontSize: 15, color: '#737373' }}>
+          <p className="pl-5 pt-3 font-sans text-sm text-[#737373]">
             Tap + to add a book
           </p>
         )}
@@ -145,27 +126,7 @@ export default function HomeScreen() {
       <button
         onClick={() => { if (!inputBook) addBook(); }}
         disabled={!!inputBook}
-        style={{
-          position: 'fixed',
-          bottom: 'calc(16px + env(safe-area-inset-bottom))',
-          right: 20,
-          width: 52,
-          height: 52,
-          borderRadius: '50%',
-          border: 'none',
-          backgroundColor: inputBook ? green[300] : green[600],
-          color: '#ffffff',
-          fontSize: 28,
-          lineHeight: 1,
-          cursor: inputBook ? 'default' : 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
-          transition: 'background-color 0.15s',
-          WebkitTapHighlightColor: 'transparent',
-          userSelect: 'none',
-        }}
+        className={`fixed bottom-[calc(16px+env(safe-area-inset-bottom))] right-5 w-[52px] h-[52px] rounded-full border-0 text-white text-[28px] leading-none flex items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.18)] transition-colors duration-150 [-webkit-tap-highlight-color:transparent] select-none ${inputBook ? 'bg-green-300 cursor-default' : 'bg-primaryDark cursor-pointer'}`}
         aria-label="Add book"
       >
         +

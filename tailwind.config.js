@@ -49,10 +49,10 @@ module.exports = {
   theme: {
     extend: {
       fontSize: {
-        xs:   ['13px', { lineHeight: '16px' }],
-        sm:   ['15px', { lineHeight: '20px' }],
-        base: ['17px', { lineHeight: '24px' }],
-        lg:   ['19px', { lineHeight: '26px' }],
+        xs:   ['12px', { lineHeight: '14px' }],
+        sm:   ['14px', { lineHeight: '16px' }],
+        base: ['16px', { lineHeight: '20px' }],
+        lg:   ['18px', { lineHeight: '24px' }],
         xl:   ['22px', { lineHeight: '28px' }],
         '2xl': ['26px', { lineHeight: '32px' }],
       },
@@ -66,9 +66,9 @@ module.exports = {
         // Primary brand tokens
         primary:    green[500],
         primaryDark: green[600],
-        background: green[200],
-        surface:    green[100],
-        border:     green[300],
+        background: green[100],
+        surface:    green[50],
+        border:     green[200],
         foreground: neutral[900],
         muted:      neutral[800],
         subtle:     neutral[700],

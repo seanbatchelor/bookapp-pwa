@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { BookItem, BookData } from '../types/book';
-import { green } from '../theme/colors';
 
 type BookDetailSheetProps = {
   book: BookItem | null;
@@ -49,15 +48,7 @@ export function BookDetailSheet({
       {/* Backdrop */}
       <div
         onClick={onClose}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(0,0,0,0.35)',
-          zIndex: 100,
-          opacity: isOpen ? 1 : 0,
-          pointerEvents: isOpen ? 'auto' : 'none',
-          transition: 'opacity 0.25s ease',
-        }}
+        className={`fixed inset-0 bg-black/35 z-[100] transition-opacity duration-[250ms] ease-in-out ${isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
       />
 
       {/* Sheet */}
@@ -65,24 +56,11 @@ export function BookDetailSheet({
         ref={sheetRef}
         role="dialog"
         aria-modal="true"
-        style={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          zIndex: 101,
-          backgroundColor: green[100],
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
-          paddingBottom: 'calc(32px + env(safe-area-inset-bottom))',
-          transform: isOpen ? 'translateY(0)' : 'translateY(100%)',
-          transition: 'transform 0.3s cubic-bezier(0.32, 0.72, 0, 1)',
-          boxShadow: '0 -4px 24px rgba(0,0,0,0.12)',
-        }}
+        className={`fixed bottom-0 left-0 right-0 z-[101] bg-surface rounded-t-[20px] pb-[calc(32px+env(safe-area-inset-bottom))] shadow-[0_-4px_24px_rgba(0,0,0,0.12)] transition-transform duration-[300ms] [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] ${isOpen ? 'translate-y-0' : 'translate-y-full'}`}
       >
         {/* Drag handle */}
-        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, paddingBottom: 4 }}>
-          <div style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: green[300] }} />
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-9 h-1 rounded-sm bg-green-300" />
         </div>
 
         {book && <SheetContent book={book} onClose={onClose} onMarkAsRead={onMarkAsRead} onMarkAsUnread={onMarkAsUnread} onDelete={onDelete} onRetryLookup={onRetryLookup} onNoneOfThese={onNoneOfThese} onFindAlternatives={onFindAlternatives} onSearchAgain={onSearchAgain} onSelectOption={onSelectOption} />}
@@ -97,17 +75,13 @@ function SheetContent({ book, onClose, onMarkAsRead, onMarkAsUnread, onDelete, o
   const handleMarkAsUnread = () => { onMarkAsUnread(); onClose(); };
 
   return (
-    <div style={{ padding: '12px 24px 0' }}>
+    <div className="px-6 pt-3">
 
       {/* Searching — loading indicator while a lookup is in flight */}
       {book.state === 'SEARCHING' && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 8, paddingBottom: 24 }}>
-          <span style={{
-            display: 'inline-block', width: 16, height: 16, borderRadius: '50%',
-            border: '2px solid #94E1B0', borderTopColor: '#298E4E',
-            animation: 'spin 0.7s linear infinite', flexShrink: 0,
-          }} />
-          <span style={{ fontFamily: '"Work Sans", sans-serif', fontSize: 15, color: '#737373' }}>Looking up…</span>
+        <div className="flex items-center gap-2.5 pt-2 pb-6">
+          <span className="inline-block shrink-0 w-4 h-4 rounded-full border-2 border-green-300 border-t-green-600 [animation:spin_0.7s_linear_infinite]" />
+          <span className="font-sans text-sm text-[#737373]">Looking up…</span>
         </div>
       )}
 
@@ -163,18 +137,7 @@ function BookPicker({ book, onSelectOption, onNoneOfThese, onSearchAgain, onDele
     if (refineText.trim()) onSearchAgain(refineText.trim());
   };
 
-  const inputStyle: React.CSSProperties = {
-    width: '100%',
-    border: `1px solid ${green[300]}`,
-    borderRadius: 10,
-    padding: '10px 14px',
-    fontFamily: '"Work Sans", sans-serif',
-    fontSize: 15,
-    color: '#171717',
-    backgroundColor: 'transparent',
-    outline: 'none',
-    boxSizing: 'border-box',
-  };
+  const inputClass = "w-full border border-green-300 rounded-[10px] py-2.5 px-3.5 font-sans text-sm text-foreground bg-transparent outline-none box-border";
 
   return (
     <>
@@ -186,19 +149,19 @@ function BookPicker({ book, onSelectOption, onNoneOfThese, onSearchAgain, onDele
           value={filterText}
           onChange={e => setFilterText(e.target.value)}
           placeholder="Filter results…"
-          style={{ ...inputStyle, marginBottom: 12 }}
+          className={`${inputClass} mb-3`}
         />
       )}
 
       {/* Candidates list */}
-      <div style={{ maxHeight: '40vh', overflowY: 'auto', marginBottom: 4 }}>
+      <div className="max-h-[40vh] overflow-y-auto mb-1">
         {filtered.length === 0 && candidates.length > 0 && (
-          <p style={{ fontFamily: '"Work Sans", sans-serif', fontSize: 14, color: '#737373', margin: '0 0 8px' }}>
+          <p className="font-sans text-[14px] text-[#737373] mb-2">
             No matches for "{filterText}"
           </p>
         )}
         {filtered.length === 0 && candidates.length === 0 && (
-          <p style={{ fontFamily: '"Work Sans", sans-serif', fontSize: 14, color: '#737373', margin: '0 0 8px' }}>
+          <p className="font-sans text-[14px] text-[#737373] mb-2">
             We couldn't find "{book.originalText}". Try a different search below.
           </p>
         )}
@@ -206,15 +169,10 @@ function BookPicker({ book, onSelectOption, onNoneOfThese, onSearchAgain, onDele
           <button
             key={i}
             onClick={() => onSelectOption(opt)}
-            style={{
-              display: 'flex', flexDirection: 'column', width: '100%', textAlign: 'left',
-              background: 'transparent', border: `1px solid ${green[300]}`, borderRadius: 10,
-              padding: '10px 14px', marginBottom: 8, cursor: 'pointer',
-              WebkitTapHighlightColor: 'transparent',
-            }}
+            className="flex flex-col w-full text-left bg-transparent border border-green-300 rounded-[10px] py-2.5 px-3.5 mb-2 cursor-pointer [-webkit-tap-highlight-color:transparent]"
           >
-            <span style={{ fontFamily: '"Work Sans", sans-serif', fontSize: 15, fontWeight: 500, color: '#171717' }}>{opt.title}</span>
-            <span style={{ fontFamily: '"Work Sans", sans-serif', fontSize: 13, color: '#525252', marginTop: 2 }}>
+            <span className="font-sans text-sm font-medium text-foreground">{opt.title}</span>
+            <span className="font-sans text-xs text-neutral mt-0.5">
               {opt.author}{opt.year ? ` · ${opt.year}` : ''}
             </span>
           </button>
@@ -227,22 +185,17 @@ function BookPicker({ book, onSelectOption, onNoneOfThese, onSearchAgain, onDele
       {!showRefine ? (
         <ActionButton label="Search again" onClick={() => setShowRefine(true)} muted />
       ) : (
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '8px 0' }}>
+        <div className="flex gap-2 items-center py-2">
           <input
             value={refineText}
             onChange={e => setRefineText(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleSearchAgain()}
             autoFocus
-            style={{ ...inputStyle, flex: 1 }}
+            className={`${inputClass} flex-1`}
           />
           <button
             onClick={handleSearchAgain}
-            style={{
-              flexShrink: 0, padding: '10px 16px', border: 'none', borderRadius: 10,
-              backgroundColor: green[600], color: '#fff',
-              fontFamily: '"Work Sans", sans-serif', fontSize: 15, fontWeight: 600,
-              cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
-            }}
+            className="shrink-0 py-2.5 px-4 border-0 rounded-[10px] bg-primaryDark text-white font-sans text-sm font-semibold cursor-pointer [-webkit-tap-highlight-color:transparent]"
           >
             Go
           </button>
@@ -257,19 +210,12 @@ function BookPicker({ book, onSelectOption, onNoneOfThese, onSearchAgain, onDele
 
 function BookMeta({ book }: { book: BookItem }) {
   return (
-    <div style={{ marginBottom: 20 }}>
-      <h2 style={{
-        fontFamily: '"Work Sans", sans-serif',
-        fontSize: 22,
-        fontWeight: 700,
-        color: '#171717',
-        margin: '8px 0 4px',
-        lineHeight: '28px',
-      }}>
+    <div className="mb-5">
+      <h2 className="font-sans text-xl font-bold text-foreground mt-2 mb-1">
         {book.resolvedTitle ?? book.originalText}
       </h2>
       {book.resolvedAuthor && (
-        <p style={{ fontFamily: '"Work Sans", sans-serif', fontSize: 15, color: '#525252', margin: 0 }}>
+        <p className="font-sans text-sm text-neutral m-0">
           {book.resolvedAuthor}{book.resolvedYear ? ` · ${book.resolvedYear}` : ''}
         </p>
       )}
@@ -279,40 +225,21 @@ function BookMeta({ book }: { book: BookItem }) {
 
 function SheetTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h2 style={{
-      fontFamily: '"Work Sans", sans-serif',
-      fontSize: 19,
-      fontWeight: 700,
-      color: '#171717',
-      margin: '8px 0 8px',
-    }}>
+    <h2 className="font-sans text-lg font-bold text-foreground my-2">
       {children}
     </h2>
   );
 }
 
 function Divider() {
-  return <div style={{ height: 1, backgroundColor: green[300], margin: '4px 0 8px' }} />;
+  return <div className="h-px bg-green-300 mt-1 mb-2" />;
 }
 
 function ActionButton({ label, onClick, danger, muted }: { label: string; onClick: () => void; danger?: boolean; muted?: boolean }) {
   return (
     <button
       onClick={onClick}
-      style={{
-        display: 'block',
-        width: '100%',
-        textAlign: 'left',
-        background: 'transparent',
-        border: 'none',
-        padding: '14px 0',
-        fontFamily: '"Work Sans", sans-serif',
-        fontSize: 17,
-        fontWeight: 500,
-        color: danger ? '#b91c1c' : muted ? '#737373' : green[700],
-        cursor: 'pointer',
-        WebkitTapHighlightColor: 'transparent',
-      }}
+      className={`block w-full text-left bg-transparent border-0 py-3.5 font-sans text-base font-medium cursor-pointer [-webkit-tap-highlight-color:transparent] ${danger ? 'text-danger-text' : muted ? 'text-[#737373]' : 'text-green-700'}`}
     >
       {label}
     </button>
