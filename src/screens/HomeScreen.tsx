@@ -1,7 +1,8 @@
 import { useRef, useEffect, useState } from 'react';
 import { useBooks } from '../context/BooksContext';
 import { BookItemRow } from '../components/BookItemRow';
-import { BookDetailSheet } from '../components/BookDetailSheet';
+import { ItemSheet } from '../components/ItemSheet';
+import { PickerSheet } from '../components/PickerSheet';
 import { BookItem } from '../types/book';
 
 function SectionHeader({ title }: { title: string }) {
@@ -51,8 +52,9 @@ function AddBookInput({ onSubmit, onCancel }: { onSubmit: (text: string) => void
 }
 
 export default function HomeScreen() {
-  const { books, addBook, submitBook, deleteBook, markAsRead, markAsUnread, markAsNotFound, selectOption, lookupBook, lookupCandidates } = useBooks();
+  const { books, addBook, submitBook, deleteBook, markAsRead, markAsUnread } = useBooks();
   const [selectedBook, setSelectedBook] = useState<BookItem | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   // To Read: searching + resolved-but-unread; newest added at top (sortOrder desc)
   const toRead = books
@@ -70,8 +72,33 @@ export default function HomeScreen() {
     if (!selectedBook) return;
     const updated = books.find(b => b.id === selectedBook.id);
     if (updated) setSelectedBook(updated);
-    else setSelectedBook(null);
+    else { setSelectedBook(null); setPickerOpen(false); }
   }, [books]);
+
+  // Escape: close picker first, then item sheet
+  useEffect(() => {
+    if (!selectedBook) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (pickerOpen) setPickerOpen(false);
+      else { setSelectedBook(null); setPickerOpen(false); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [selectedBook, pickerOpen]);
+
+  const handleBookPress = (book: BookItem) => {
+    setSelectedBook(book);
+    // Open picker immediately for unmatched books
+    if (book.matchState !== 'matched' && book.state !== 'SEARCHING') {
+      setPickerOpen(true);
+    }
+  };
+
+  const handleClose = () => {
+    setSelectedBook(null);
+    setPickerOpen(false);
+  };
 
   const handleAddSubmit = (text: string) => {
     if (!inputBook) return;
@@ -102,7 +129,7 @@ export default function HomeScreen() {
           <BookItemRow
             key={book.id}
             book={book}
-            onPress={() => setSelectedBook(book)}
+            onPress={() => handleBookPress(book)}
             onToggleRead={() => markAsRead(book.id)}
           />
         ))}
@@ -114,7 +141,7 @@ export default function HomeScreen() {
               <BookItemRow
                 key={book.id}
                 book={book}
-                onPress={() => setSelectedBook(book)}
+                onPress={() => handleBookPress(book)}
                 onToggleRead={() => markAsUnread(book.id)}
               />
             ))}
@@ -132,18 +159,15 @@ export default function HomeScreen() {
         +
       </button>
 
-      {/* Detail sheet */}
-      <BookDetailSheet
+      <ItemSheet
         book={selectedBook}
-        onClose={() => setSelectedBook(null)}
-        onMarkAsRead={() => selectedBook && markAsRead(selectedBook.id)}
-        onMarkAsUnread={() => selectedBook && markAsUnread(selectedBook.id)}
-        onDelete={() => selectedBook && deleteBook(selectedBook.id)}
-        onRetryLookup={() => selectedBook && lookupBook(selectedBook.id)}
-        onNoneOfThese={() => selectedBook && markAsNotFound(selectedBook.id)}
-        onFindAlternatives={() => selectedBook && lookupCandidates(selectedBook.id)}
-        onSearchAgain={(query) => selectedBook && lookupCandidates(selectedBook.id, query)}
-        onSelectOption={(opt) => selectedBook && selectOption(selectedBook.id, opt)}
+        onClose={handleClose}
+        onOpenPicker={() => setPickerOpen(true)}
+      />
+      <PickerSheet
+        book={selectedBook}
+        isOpen={pickerOpen}
+        onDismiss={() => setPickerOpen(false)}
       />
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
