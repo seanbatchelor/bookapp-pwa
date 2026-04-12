@@ -18,11 +18,6 @@ function SectionHeader({ title }: { title: string }) {
 function AddBookInput({ onSubmit, onCancel }: { onSubmit: (text: string) => void; onCancel: () => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    const t = setTimeout(() => inputRef.current?.focus(), 50);
-    return () => clearTimeout(t);
-  }, []);
-
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       const val = inputRef.current?.value.trim() ?? '';
@@ -43,6 +38,7 @@ function AddBookInput({ onSubmit, onCancel }: { onSubmit: (text: string) => void
         ref={inputRef}
         type="text"
         placeholder="Book title, author…"
+        autoFocus
         onKeyDown={handleKeyDown}
         onBlur={handleBlur}
         className="flex-1 border-0 outline-none bg-transparent font-sans text-base font-normal text-foreground caret-primaryDark"

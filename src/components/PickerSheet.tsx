@@ -110,7 +110,7 @@ function CandidateView({ book, onSelect, onNoneOfThese, onDelete }: {
       )
     : candidates;
 
-  const inputClass = "w-full border border-green-300 rounded-[10px] py-2.5 px-3.5 font-sans text-sm text-foreground bg-transparent outline-none box-border";
+  const inputClass = "w-full border border-green-300 rounded-[10px] py-2.5 px-3.5 font-sans text-base text-foreground bg-transparent outline-none box-border";
 
   return (
     <>
@@ -167,7 +167,7 @@ function SearchView({ book, onSearch, onDelete }: {
     if (query.trim()) onSearch(query.trim());
   };
 
-  const inputClass = "flex-1 border border-green-300 rounded-[10px] py-2.5 px-3.5 font-sans text-sm text-foreground bg-transparent outline-none box-border";
+  const inputClass = "flex-1 border border-green-300 rounded-[10px] py-2.5 px-3.5 font-sans text-base text-foreground bg-transparent outline-none box-border";
 
   return (
     <>
