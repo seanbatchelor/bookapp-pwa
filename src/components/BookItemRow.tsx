@@ -11,21 +11,19 @@ type BookItemRowProps = {
 export function BookItemRow({ book, onPress, onToggleRead }: BookItemRowProps) {
   const badge =
     book.matchState === 'candidates' ? { label: 'Multiple matches', variant: 'default' as BadgeVariant } :
-    book.matchState === 'not_found'  ? { label: 'Not found',        variant: 'error'   as BadgeVariant } :
+    book.matchState === 'not_found'  ? { label: 'Not found',        variant: 'default' as BadgeVariant } :
     undefined;
   const title = book.resolvedTitle ?? book.originalText ?? '';
-  const author = book.resolvedAuthor ?? '';
+  const author = book.resolvedAuthor ?? book.searchAuthor ?? '';
   const isRead = book.readState === 'read';
   const isMatched = book.matchState === 'matched';
-  const showCheckbox = book.matchState !== undefined;
-  const isInteractive = book.matchState !== undefined;
 
   return (
     <div className="flex items-center min-h-[52px] py-2 px-4 select-none [-webkit-tap-highlight-color:transparent]">
       {/* Checkbox / Spinner */}
       {book.state === 'SEARCHING' ? (
         <div className="shrink-0 w-7 h-7 mr-3 rounded-full border-2 border-green-300 border-t-green-600 [animation:spin_0.7s_linear_infinite]" />
-      ) : showCheckbox && (
+      ) : book.matchState !== undefined && (
         <button
           onClick={(e) => { e.stopPropagation(); onToggleRead?.(); }}
           aria-label={isRead ? 'Mark as unread' : 'Mark as read'}
@@ -46,8 +44,8 @@ export function BookItemRow({ book, onPress, onToggleRead }: BookItemRowProps) {
 
       {/* Text — tappable to open sheet */}
       <div
-        onClick={isInteractive ? onPress : undefined}
-        className={`flex-1 min-w-0 space-y-0.5 ${isInteractive ? 'cursor-pointer' : 'cursor-default'}`}
+        onClick={book.matchState !== undefined ? onPress : undefined}
+        className={`flex-1 min-w-0 space-y-0.5 ${book.matchState !== undefined ? 'cursor-pointer' : 'cursor-default'}`}
       >
         {/* Title row */}
         <div className="flex items-center gap-2">

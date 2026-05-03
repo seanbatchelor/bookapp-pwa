@@ -1,6 +1,6 @@
 import { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
 import { BookItem, BookData, ReadState } from '../types/book';
-import { googleBooksLookup } from '../utils/googleBooksLookup';
+import { googleBooksLookup, googleBooksLookupByTitleAuthor } from '../utils/googleBooksLookup';
 import { USE_SEED_DATA, SEED_BOOKS } from '../data/seedData';
 
 const STORAGE_KEY = 'bookapp_books';
@@ -20,8 +20,8 @@ type BooksContextType = {
   addBook: () => void;
   updateBookText: (id: string, text: string) => void;
   submitBook: (id: string, text: string) => Promise<void>;
-  lookupBook: (id: string) => Promise<void>;
-  lookupCandidates: (id: string, customQuery?: string) => Promise<void>;
+  lookupCandidates: (id: string) => Promise<void>;
+  saveManualEntry: (id: string, title: string, author: string) => Promise<void>;
   selectOption: (id: string, book: BookData) => void;
   markAsRead: (id: string) => void;
   markAsUnread: (id: string) => void;
@@ -31,11 +31,9 @@ type BooksContextType = {
 
 const BooksContext = createContext<BooksContextType | undefined>(undefined);
 
-// Simple reducer so we get a stable dispatch reference alongside async actions
 type Action =
   | { type: 'SET'; books: BookItem[] }
   | { type: 'UPDATE'; id: string; patch: Partial<BookItem> }
-  | { type: 'UPDATE_MANY'; patches: { id: string; patch: Partial<BookItem> }[] }
   | { type: 'DELETE'; id: string };
 
 function reducer(state: BookItem[], action: Action): BookItem[] {
@@ -44,10 +42,6 @@ function reducer(state: BookItem[], action: Action): BookItem[] {
       return action.books;
     case 'UPDATE':
       return state.map(b => b.id === action.id ? { ...b, ...action.patch } : b);
-    case 'UPDATE_MANY': {
-      const patchMap = new Map(action.patches.map(p => [p.id, p.patch]));
-      return state.map(b => patchMap.has(b.id) ? { ...b, ...patchMap.get(b.id) } : b);
-    }
     case 'DELETE':
       return state.filter(b => b.id !== action.id);
   }
@@ -56,22 +50,14 @@ function reducer(state: BookItem[], action: Action): BookItem[] {
 export function BooksProvider({ children }: { children: ReactNode }) {
   const [books, dispatch] = useReducer(reducer, undefined, loadBooks);
 
-  // Persist to localStorage whenever books changes
   useEffect(() => {
-    // Don't persist transient input rows — only save books that have completed lookup
     const toSave = books.filter(b => b.state !== 'EMPTY' && b.state !== 'ACTIVE' && b.state !== 'SEARCHING');
     localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
   }, [books]);
 
   const addBook = () => {
     const ts = Date.now();
-    const newBook: BookItem = {
-      id: ts.toString(),
-      state: 'EMPTY',
-      originalText: '',
-      sortOrder: ts,
-    };
-    dispatch({ type: 'SET', books: [newBook, ...books] });
+    dispatch({ type: 'SET', books: [{ id: ts.toString(), state: 'EMPTY', originalText: '', sortOrder: ts }, ...books] });
   };
 
   const updateBookText = (id: string, text: string) => {
@@ -88,7 +74,6 @@ export function BooksProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  // Submit + immediate lookup in one atomic action
   const submitBook = async (id: string, text: string) => {
     const trimmed = text.trim();
     if (!trimmed) return;
@@ -97,32 +82,27 @@ export function BooksProvider({ children }: { children: ReactNode }) {
     applyLookupResult(id, result);
   };
 
-  const lookupBook = async (id: string) => {
-    const book = books.find(b => b.id === id);
-    if (!book || !book.originalText.trim()) return;
-    dispatch({ type: 'UPDATE', id, patch: { state: 'SEARCHING' } });
-    const result = await googleBooksLookup(book.originalText);
-    applyLookupResult(id, result, book.readState);
-  };
-
-  // Like lookupBook but always returns candidates — used when the auto-resolved book is wrong.
-  // Accepts an optional customQuery to refine the search (updates originalText too).
-  const lookupCandidates = async (id: string, customQuery?: string) => {
+  const lookupCandidates = async (id: string) => {
     const book = books.find(b => b.id === id);
     if (!book) return;
-    const query = customQuery ?? book.originalText;
-    if (!query.trim()) return;
-    const patch: Partial<BookItem> = { state: 'SEARCHING' };
-    if (customQuery) patch.originalText = customQuery;
-    dispatch({ type: 'UPDATE', id, patch });
-    const result = await googleBooksLookup(query, true);
+    dispatch({ type: 'UPDATE', id, patch: { state: 'SEARCHING' } });
+    const result = await googleBooksLookup(book.originalText, true);
     if (result.type === 'multi') {
       dispatch({ type: 'UPDATE', id, patch: { state: undefined, matchState: 'candidates', options: result.options } });
     } else if (result.type === 'single') {
-      // forceMulti still returned single (only 1 result after filtering) — show as candidates
       dispatch({ type: 'UPDATE', id, patch: { state: undefined, matchState: 'candidates', options: [result.book] } });
     } else {
       dispatch({ type: 'UPDATE', id, patch: { state: undefined, matchState: 'not_found' } });
+    }
+  };
+
+  const saveManualEntry = async (id: string, title: string, author: string) => {
+    const book = books.find(b => b.id === id);
+    if (!book) return;
+    dispatch({ type: 'UPDATE', id, patch: { matchState: 'matched', resolvedTitle: title, resolvedAuthor: author || undefined, resolvedYear: undefined, options: undefined, searchAuthor: undefined, readState: book.readState ?? 'unread' } });
+    const result = await googleBooksLookupByTitleAuthor(title, author, false);
+    if (result.type === 'single') {
+      dispatch({ type: 'UPDATE', id, patch: { resolvedTitle: result.book.title, resolvedAuthor: result.book.author, resolvedYear: result.book.year } });
     }
   };
 
@@ -133,14 +113,12 @@ export function BooksProvider({ children }: { children: ReactNode }) {
 
   const markAsRead = (id: string) => {
     const ts = Date.now();
-    // movedAt used to sort Read list — ascending, so highest movedAt = bottom (most recently read)
     const readMovedAts = books.filter(x => x.readState === 'read').map(x => x.movedAt ?? 0);
     const maxMovedAt = readMovedAts.length === 0 ? ts : Math.max(...readMovedAts);
     dispatch({ type: 'UPDATE', id, patch: { readState: 'read', sortOrder: ts, movedAt: maxMovedAt + 1 } });
   };
 
   const markAsUnread = (id: string) => {
-    // Place at bottom of To Read by going one below the current minimum sortOrder
     const toReadSortOrders = books
       .filter(x => x.readState !== 'read' && x.matchState !== undefined)
       .map(x => x.sortOrder ?? 0);
@@ -157,7 +135,7 @@ export function BooksProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <BooksContext.Provider value={{ books, addBook, updateBookText, submitBook, lookupBook, lookupCandidates, selectOption, markAsRead, markAsUnread, markAsNotFound, deleteBook }}>
+    <BooksContext.Provider value={{ books, addBook, updateBookText, submitBook, lookupCandidates, saveManualEntry, selectOption, markAsRead, markAsUnread, markAsNotFound, deleteBook }}>
       {children}
     </BooksContext.Provider>
   );

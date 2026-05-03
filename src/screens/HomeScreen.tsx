@@ -77,7 +77,7 @@ export default function HomeScreen() {
     const handler = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       if (pickerOpen) setPickerOpen(false);
-      else { setSelectedBook(null); setPickerOpen(false); }
+      else setSelectedBook(null);
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
@@ -85,10 +85,7 @@ export default function HomeScreen() {
 
   const handleBookPress = (book: BookItem) => {
     setSelectedBook(book);
-    // Open picker immediately for unmatched books
-    if (book.matchState !== 'matched' && book.state !== 'SEARCHING') {
-      setPickerOpen(true);
-    }
+    if (book.matchState === 'candidates') setPickerOpen(true);
   };
 
   const handleClose = () => {
@@ -158,7 +155,6 @@ export default function HomeScreen() {
       <ItemSheet
         book={selectedBook}
         onClose={handleClose}
-        onOpenPicker={() => setPickerOpen(true)}
       />
       <PickerSheet
         book={selectedBook}

@@ -69,17 +69,7 @@ function classifyInput(cleaned: string): InputClassification {
     return { type: 'title_and_author', title: byMatch[1].trim(), author: byMatch[2].trim() };
   }
 
-  // 2. "Author, Title"
-  const commaIdx = cleaned.indexOf(',');
-  if (commaIdx !== -1) {
-    return {
-      type: 'title_and_author',
-      title: cleaned.slice(commaIdx + 1).trim(),
-      author: cleaned.slice(0, commaIdx).trim(),
-    };
-  }
-
-  // 3. Author-only heuristic: 2–3 title-case words, no stop words, no digits
+  // 2. Author-only heuristic: 2–3 title-case words, no stop words, no digits
   const words = cleaned.split(' ');
   if (
     words.length >= 2 &&
@@ -126,6 +116,126 @@ async function fetchVolumes(q: string, apiKey: string): Promise<any[]> {
   }
 }
 
+// ─── Shared scoring + deduplication ──────────────────────────────────────────
+function buildResult(
+  allItems: any[],
+  titleQuery: string,
+  authorQuery: string,
+  forceMulti: boolean,
+): LookupResult {
+  if (allItems.length === 0) return { type: 'none' };
+
+  // Exact match shortcut — only for pure title searches
+  if (!forceMulti && authorQuery === '') {
+    const normTitle = normalise(titleQuery);
+    const exactMatch = allItems.find(
+      (item: any) => normalise(item.volumeInfo.title ?? '') === normTitle,
+    );
+    if (exactMatch) {
+      return {
+        type: 'single',
+        book: {
+          title: exactMatch.volumeInfo.title ?? '',
+          author: exactMatch.volumeInfo.authors?.[0] ?? 'Unknown Author',
+          year: exactMatch.volumeInfo.publishedDate?.split('-')[0],
+        },
+      };
+    }
+  }
+
+  const logCounts = allItems.map((item: any) =>
+    Math.log((item.volumeInfo.ratingsCount ?? 0) + 1),
+  );
+  const maxLogCount = Math.max(...logCounts);
+
+  const scored: Array<{ book: BookData; score: number }> = allItems
+    .map((item: any, i: number) => {
+      const title: string = item.volumeInfo.title ?? '';
+      const author: string = item.volumeInfo.authors?.[0] ?? 'Unknown Author';
+      const popularityScore = maxLogCount > 0 ? logCounts[i] / maxLogCount : 0;
+      const book: BookData = { title, author, year: item.volumeInfo.publishedDate?.split('-')[0] };
+      return { book, score: score(titleQuery, authorQuery, title, author, popularityScore) };
+    })
+    .filter((r: { book: BookData; score: number }) => r.score > 0.1);
+
+  if (scored.length === 0) return { type: 'none' };
+
+  scored.sort((a: { score: number }, b: { score: number }) => b.score - a.score);
+
+  const seen = new Map<string, { book: BookData; score: number }>();
+  for (const r of scored) {
+    const key = `${normalise(r.book.title)}||${normalise(r.book.author)}`;
+    const existing = seen.get(key);
+    if (!existing) {
+      seen.set(key, r);
+    } else {
+      const existingYear = parseInt(existing.book.year ?? '9999');
+      const currentYear = parseInt(r.book.year ?? '9999');
+      if (currentYear < existingYear) seen.set(key, r);
+    }
+  }
+  const deduped = [...seen.values()].sort((a, b) => b.score - a.score);
+  const best = deduped[0];
+
+  if (!forceMulti && best.score >= AUTO_RESOLVE_THRESHOLD) {
+    return { type: 'single', book: best.book };
+  }
+
+  return {
+    type: 'multi',
+    options: deduped.slice(0, 20).map((r: { book: BookData }) => r.book),
+  };
+}
+
+// Lookup using explicit title + author, bypassing the input classifier.
+export async function googleBooksLookupByTitleAuthor(
+  title: string,
+  author: string,
+  forceMulti = false,
+): Promise<LookupResult> {
+  try {
+    const apiKey = import.meta.env.VITE_GOOGLE_BOOKS_API_KEY;
+    const titleQuery = cleanInput(title);
+    const authorQuery = cleanInput(author);
+    if (!titleQuery && !authorQuery) return { type: 'none' };
+
+    let queryPromises: Promise<any[]>[];
+    if (!titleQuery) {
+      queryPromises = [
+        fetchVolumes(`inauthor:"${authorQuery}"`, apiKey),
+        fetchVolumes(`intitle:"${authorQuery}"`, apiKey),
+      ];
+    } else if (authorQuery) {
+      queryPromises = [
+        fetchVolumes(`intitle:"${titleQuery}"+inauthor:${authorQuery}`, apiKey),
+        fetchVolumes(`intitle:"${titleQuery}"`, apiKey),
+      ];
+    } else {
+      const words = titleQuery.split(' ');
+      const perWordQ = words.map(w => `intitle:${w}`).join('+');
+      queryPromises = [
+        fetchVolumes(`intitle:"${titleQuery}"`, apiKey),
+        fetchVolumes(perWordQ, apiKey),
+        fetchVolumes(titleQuery, apiKey),
+      ];
+    }
+
+    const itemArrays = await Promise.all(queryPromises);
+    const seenIds = new Set<string>();
+    const allItems: any[] = [];
+    for (const item of itemArrays.flat()) {
+      if (!seenIds.has(item.id)) {
+        seenIds.add(item.id);
+        allItems.push(item);
+      }
+    }
+    // Author-only: always show candidates since we can't score by title
+    return buildResult(allItems, titleQuery, authorQuery, forceMulti || !titleQuery);
+  } catch {
+    return { type: 'none' };
+  }
+}
+
 // ─── Main lookup ──────────────────────────────────────────────────────────────
 export async function googleBooksLookup(query: string, forceMulti = false): Promise<LookupResult> {
   try {
@@ -166,7 +276,6 @@ export async function googleBooksLookup(query: string, forceMulti = false): Prom
 
     const itemArrays = await Promise.all(queryPromises);
 
-    // Merge and deduplicate by Google Books volume ID (first occurrence wins)
     const seenIds = new Set<string>();
     const allItems: any[] = [];
     for (const item of itemArrays.flat()) {
@@ -176,83 +285,7 @@ export async function googleBooksLookup(query: string, forceMulti = false): Prom
       }
     }
 
-    if (allItems.length === 0) return { type: 'none' };
-
-    // Exact match shortcut — only for pure title searches (no author component).
-    // Compare normalised titleQuery against each result title; skip if the user
-    // provided an author hint (to avoid matching study guides titled "The Road by McCarthy").
-    if (!forceMulti && authorQuery === '') {
-      const normTitle = normalise(titleQuery);
-      const exactMatch = allItems.find(
-        (item: any) => normalise(item.volumeInfo.title ?? '') === normTitle,
-      );
-      if (exactMatch) {
-        return {
-          type: 'single',
-          book: {
-            title: exactMatch.volumeInfo.title ?? '',
-            author: exactMatch.volumeInfo.authors?.[0] ?? 'Unknown Author',
-            year: exactMatch.volumeInfo.publishedDate?.split('-')[0],
-          },
-        };
-      }
-    }
-
-    // Popularity normalisation — log-scale ratingsCount, normalised to 0–1 across result set
-    const logCounts = allItems.map((item: any) =>
-      Math.log((item.volumeInfo.ratingsCount ?? 0) + 1),
-    );
-    const maxLogCount = Math.max(...logCounts);
-
-    // Map and score all results
-    const scored: Array<{ book: BookData; score: number }> = allItems
-      .map((item: any, i: number) => {
-        const title: string = item.volumeInfo.title ?? '';
-        const author: string = item.volumeInfo.authors?.[0] ?? 'Unknown Author';
-        const popularityScore = maxLogCount > 0 ? logCounts[i] / maxLogCount : 0;
-        const book: BookData = {
-          title,
-          author,
-          year: item.volumeInfo.publishedDate?.split('-')[0],
-        };
-        return { book, score: score(titleQuery, authorQuery, title, author, popularityScore) };
-      })
-      // Drop results with no meaningful similarity at all
-      .filter((r: { book: BookData; score: number }) => r.score > 0.1);
-
-    if (scored.length === 0) return { type: 'none' };
-
-    // Sort best match first
-    scored.sort((a: { score: number }, b: { score: number }) => b.score - a.score);
-
-    // Deduplicate by normalised title+author — keep earliest edition
-    const seen = new Map<string, { book: BookData; score: number }>();
-    for (const r of scored) {
-      const key = `${normalise(r.book.title)}||${normalise(r.book.author)}`;
-      const existing = seen.get(key);
-      if (!existing) {
-        seen.set(key, r);
-      } else {
-        // Keep whichever has the earlier year (or replace if current has a year and existing doesn't)
-        const existingYear = parseInt(existing.book.year ?? '9999');
-        const currentYear = parseInt(r.book.year ?? '9999');
-        if (currentYear < existingYear) seen.set(key, r);
-      }
-    }
-    const deduped = [...seen.values()].sort((a, b) => b.score - a.score);
-
-    const best = deduped[0];
-
-    // Auto-resolve if the top result is clearly the right book (unless caller wants candidates)
-    if (!forceMulti && best.score >= AUTO_RESOLVE_THRESHOLD) {
-      return { type: 'single', book: best.book };
-    }
-
-    // Otherwise return top 20 ranked candidates for the user to pick
-    return {
-      type: 'multi',
-      options: deduped.slice(0, 20).map((r: { book: BookData }) => r.book),
-    };
+    return buildResult(allItems, titleQuery, authorQuery, forceMulti);
   } catch {
     return { type: 'none' };
   }

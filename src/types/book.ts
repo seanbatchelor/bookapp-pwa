@@ -21,6 +21,7 @@ export type BookItem = {
   sortOrder?: number;
   movedAt?: number;
   originalText: string;
+  searchAuthor?: string;    // author entered in the split search form
   resolvedTitle?: string;
   resolvedAuthor?: string;
   resolvedYear?: string;
