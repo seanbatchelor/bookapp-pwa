@@ -5,6 +5,7 @@ import { useBooks } from '../context/BooksContext';
 type ItemSheetProps = {
   book: BookItem | null;
   onClose: () => void;
+  onLookupOptions: (title: string, author: string) => void;
 };
 
 function getInitialTitleAuthor(book: BookItem): { title: string; author: string } {
@@ -13,7 +14,7 @@ function getInitialTitleAuthor(book: BookItem): { title: string; author: string 
   return { title: book.originalText, author: '' };
 }
 
-export function ItemSheet({ book, onClose }: ItemSheetProps) {
+export function ItemSheet({ book, onClose, onLookupOptions }: ItemSheetProps) {
   const isOpen = !!book;
   const { markAsRead, markAsUnread, deleteBook, saveManualEntry } = useBooks();
   const [editing, setEditing] = useState(false);
@@ -23,7 +24,7 @@ export function ItemSheet({ book, onClose }: ItemSheetProps) {
     return () => { document.body.style.overflow = ''; };
   }, [isOpen]);
 
-  useEffect(() => { setEditing(false); }, [book?.id]);
+  useEffect(() => { setEditing(false); }, [book?.id, book?.matchState]);
 
   const handleMarkAsRead = () => { if (book) { markAsRead(book.id); onClose(); } };
   const handleMarkAsUnread = () => { if (book) { markAsUnread(book.id); onClose(); } };
@@ -77,6 +78,7 @@ export function ItemSheet({ book, onClose }: ItemSheetProps) {
                   book={book}
                   onSave={handleSave}
                   onDelete={handleDelete}
+                  onLookupOptions={onLookupOptions}
                 />
               )}
             </>
@@ -87,10 +89,11 @@ export function ItemSheet({ book, onClose }: ItemSheetProps) {
   );
 }
 
-function ManualEntryForm({ book, onSave, onDelete }: {
+function ManualEntryForm({ book, onSave, onDelete, onLookupOptions }: {
   book: BookItem;
   onSave: (title: string, author: string) => void;
   onDelete: () => void;
+  onLookupOptions: (title: string, author: string) => void;
 }) {
   const initial = getInitialTitleAuthor(book);
   const [title, setTitle] = useState(initial.title);
@@ -131,6 +134,17 @@ function ManualEntryForm({ book, onSave, onDelete }: {
           Save
         </button>
       </div>
+
+      <p className="font-sans text-sm text-[#737373] mt-1 mb-2">
+        Not sure about title or author?{' '}
+        <button
+          onClick={() => { if (title.trim()) onLookupOptions(title.trim(), author.trim()); }}
+          disabled={!title.trim()}
+          className="text-green-700 underline bg-transparent border-0 p-0 font-sans text-sm cursor-pointer disabled:opacity-40 [-webkit-tap-highlight-color:transparent]"
+        >
+          Look up options
+        </button>
+      </p>
 
       <div className="h-px bg-green-300 mt-1 mb-2" />
       <ActionButton label="Delete" onClick={onDelete} danger />

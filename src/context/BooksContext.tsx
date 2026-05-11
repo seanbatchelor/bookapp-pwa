@@ -21,6 +21,7 @@ type BooksContextType = {
   updateBookText: (id: string, text: string) => void;
   submitBook: (id: string, text: string) => Promise<void>;
   lookupCandidates: (id: string) => Promise<void>;
+  lookupCandidatesByTitleAuthor: (id: string, title: string, author: string) => Promise<'candidates' | 'not_found'>;
   saveManualEntry: (id: string, title: string, author: string) => Promise<void>;
   selectOption: (id: string, book: BookData) => void;
   markAsRead: (id: string) => void;
@@ -82,6 +83,19 @@ export function BooksProvider({ children }: { children: ReactNode }) {
     applyLookupResult(id, result);
   };
 
+  const lookupCandidatesByTitleAuthor = async (id: string, title: string, author: string): Promise<'candidates' | 'not_found'> => {
+    dispatch({ type: 'UPDATE', id, patch: { state: 'SEARCHING' } });
+    const result = await googleBooksLookupByTitleAuthor(title, author, true);
+    if (result.type !== 'none') {
+      const options = result.type === 'multi' ? result.options : [result.book];
+      dispatch({ type: 'UPDATE', id, patch: { state: undefined, matchState: 'candidates', options } });
+      return 'candidates';
+    } else {
+      dispatch({ type: 'UPDATE', id, patch: { state: undefined, matchState: 'not_found' } });
+      return 'not_found';
+    }
+  };
+
   const lookupCandidates = async (id: string) => {
     const book = books.find(b => b.id === id);
     if (!book) return;
@@ -135,7 +149,7 @@ export function BooksProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <BooksContext.Provider value={{ books, addBook, updateBookText, submitBook, lookupCandidates, saveManualEntry, selectOption, markAsRead, markAsUnread, markAsNotFound, deleteBook }}>
+    <BooksContext.Provider value={{ books, addBook, updateBookText, submitBook, lookupCandidates, lookupCandidatesByTitleAuthor, saveManualEntry, selectOption, markAsRead, markAsUnread, markAsNotFound, deleteBook }}>
       {children}
     </BooksContext.Provider>
   );

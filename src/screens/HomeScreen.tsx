@@ -48,7 +48,7 @@ function AddBookInput({ onSubmit, onCancel }: { onSubmit: (text: string) => void
 }
 
 export default function HomeScreen() {
-  const { books, addBook, submitBook, deleteBook, markAsRead, markAsUnread } = useBooks();
+  const { books, addBook, submitBook, deleteBook, markAsRead, markAsUnread, lookupCandidatesByTitleAuthor } = useBooks();
   const [selectedBook, setSelectedBook] = useState<BookItem | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
 
@@ -67,8 +67,13 @@ export default function HomeScreen() {
   useEffect(() => {
     if (!selectedBook) return;
     const updated = books.find(b => b.id === selectedBook.id);
-    if (updated) setSelectedBook(updated);
-    else { setSelectedBook(null); setPickerOpen(false); }
+    if (updated) {
+      setSelectedBook(updated);
+      if (!updated.state && updated.matchState === 'candidates') setPickerOpen(true);
+    } else {
+      setSelectedBook(null);
+      setPickerOpen(false);
+    }
   }, [books]);
 
   // Escape: close picker first, then item sheet
@@ -91,6 +96,13 @@ export default function HomeScreen() {
   const handleClose = () => {
     setSelectedBook(null);
     setPickerOpen(false);
+  };
+
+  const handleLookupOptions = async (title: string, author: string) => {
+    if (!selectedBook) return;
+    setPickerOpen(true);
+    const outcome = await lookupCandidatesByTitleAuthor(selectedBook.id, title, author);
+    if (outcome === 'not_found') setPickerOpen(false);
   };
 
   const handleAddSubmit = (text: string) => {
@@ -155,6 +167,7 @@ export default function HomeScreen() {
       <ItemSheet
         book={selectedBook}
         onClose={handleClose}
+        onLookupOptions={handleLookupOptions}
       />
       <PickerSheet
         book={selectedBook}
