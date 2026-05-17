@@ -38,10 +38,19 @@ export function PickerSheet({ book, isOpen, onDismiss }: PickerSheetProps) {
       <div
         role="dialog"
         aria-modal="true"
-        className={`fixed bottom-0 left-0 right-0 z-[103] h-[88vh] bg-surface rounded-t-[20px] shadow-[0_-4px_24px_rgba(0,0,0,0.12)] flex flex-col transition-transform duration-[300ms] [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] ${isOpen ? 'translate-y-0' : 'translate-y-full'}`}
+        className={`fixed bottom-0 left-0 right-0 z-[103] h-[95vh] bg-surface rounded-t-[20px] shadow-[0_-4px_24px_rgba(0,0,0,0.12)] flex flex-col transition-transform duration-[300ms] [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] ${isOpen ? 'translate-y-0' : 'translate-y-full'}`}
       >
-        <div className="flex justify-center pt-3 pb-1 shrink-0">
-          <div className="w-9 h-1 rounded-sm bg-green-300" />
+        <div className="flex items-center justify-between px-4 pt-2 pb-1 shrink-0">
+          <div className="w-10" />
+          <button
+            onClick={onDismiss}
+            className="p-2 text-neutral [-webkit-tap-highlight-color:transparent]"
+            aria-label="Close"
+          >
+            <svg width="16" height="16" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <path d="M1 1l10 10M11 1L1 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 pt-2 pb-[calc(32px+env(safe-area-inset-bottom))]">
