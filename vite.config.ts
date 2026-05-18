@@ -8,6 +8,9 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icons/*.png'],
+      workbox: {
+        navigateFallback: 'index.html',
+      },
       manifest: {
         name: 'Book App',
         short_name: 'Books',

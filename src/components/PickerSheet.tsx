@@ -6,15 +6,17 @@ type PickerSheetProps = {
   book: BookItem | null;
   isOpen: boolean;
   onDismiss: () => void;
+  onAfterSelect?: () => void;
 };
 
-export function PickerSheet({ book, isOpen, onDismiss }: PickerSheetProps) {
+export function PickerSheet({ book, isOpen, onDismiss, onAfterSelect }: PickerSheetProps) {
   const { selectOption, markAsNotFound, deleteBook } = useBooks();
 
   const handleSelect = (opt: BookData) => {
     if (!book) return;
     selectOption(book.id, opt);
     onDismiss();
+    onAfterSelect?.();
   };
 
   const handleNoneOfThese = () => {

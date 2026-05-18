@@ -1,8 +1,7 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useBooks } from '../context/BooksContext';
 import { BookItemRow } from '../components/BookItemRow';
-import { ItemSheet } from '../components/ItemSheet';
-import { PickerSheet } from '../components/PickerSheet';
 import { BookItem } from '../types/book';
 
 function SectionHeader({ title }: { title: string }) {
@@ -48,62 +47,20 @@ function AddBookInput({ onSubmit, onCancel }: { onSubmit: (text: string) => void
 }
 
 export default function HomeScreen() {
-  const { books, addBook, submitBook, deleteBook, markAsRead, markAsUnread, lookupCandidatesByTitleAuthor } = useBooks();
-  const [selectedBook, setSelectedBook] = useState<BookItem | null>(null);
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const { books, addBook, submitBook, deleteBook, markAsRead, markAsUnread } = useBooks();
+  const navigate = useNavigate();
 
-  // To Read: searching + resolved-but-unread; newest added at top (sortOrder desc)
   const toRead = books
     .filter(b => b.state === 'SEARCHING' || (b.matchState !== undefined && b.readState !== 'read'))
     .sort((a, b) => (b.sortOrder ?? 0) - (a.sortOrder ?? 0));
 
-  // Read: most recently marked-as-read at top (movedAt desc)
   const readBooks = books
     .filter(b => b.readState === 'read')
     .sort((a, b) => (b.movedAt ?? 0) - (a.movedAt ?? 0));
+
   const inputBook = books.find(b => b.state === 'EMPTY' || b.state === 'ACTIVE');
 
-  // Keep selectedBook in sync if its state changes while sheet is open
-  useEffect(() => {
-    if (!selectedBook) return;
-    const updated = books.find(b => b.id === selectedBook.id);
-    if (updated) {
-      setSelectedBook(updated);
-      if (!updated.state && updated.matchState === 'candidates') setPickerOpen(true);
-    } else {
-      setSelectedBook(null);
-      setPickerOpen(false);
-    }
-  }, [books]);
-
-  // Escape: close picker first, then item sheet
-  useEffect(() => {
-    if (!selectedBook) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      if (pickerOpen) setPickerOpen(false);
-      else setSelectedBook(null);
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [selectedBook, pickerOpen]);
-
-  const handleBookPress = (book: BookItem) => {
-    setSelectedBook(book);
-    if (book.matchState === 'candidates') setPickerOpen(true);
-  };
-
-  const handleClose = () => {
-    setSelectedBook(null);
-    setPickerOpen(false);
-  };
-
-  const handleLookupOptions = async (title: string, author: string) => {
-    if (!selectedBook) return;
-    setPickerOpen(true);
-    const outcome = await lookupCandidatesByTitleAuthor(selectedBook.id, title, author);
-    if (outcome === 'not_found') setPickerOpen(false);
-  };
+  const handleBookPress = (book: BookItem) => navigate('/book/' + book.id);
 
   const handleAddSubmit = (text: string) => {
     if (!inputBook) return;
@@ -116,7 +73,6 @@ export default function HomeScreen() {
 
   return (
     <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative">
-      {/* Scrollable list */}
       <div className="flex-1 min-h-0 overflow-y-auto [-webkit-overflow-scrolling:touch] pb-[100px]">
         <SectionHeader title="To Read" />
 
@@ -154,7 +110,6 @@ export default function HomeScreen() {
         )}
       </div>
 
-      {/* FAB */}
       <button
         onClick={() => { if (!inputBook) addBook(); }}
         disabled={!!inputBook}
@@ -163,17 +118,6 @@ export default function HomeScreen() {
       >
         +
       </button>
-
-      <ItemSheet
-        book={selectedBook}
-        onClose={handleClose}
-        onLookupOptions={handleLookupOptions}
-      />
-      <PickerSheet
-        book={selectedBook}
-        isOpen={pickerOpen}
-        onDismiss={() => setPickerOpen(false)}
-      />
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>

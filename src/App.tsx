@@ -1,27 +1,24 @@
-import { useState } from 'react';
+import { Routes, Route } from 'react-router-dom';
 import { BooksProvider } from './context/BooksContext';
 import { FloatingNav } from './components/FloatingNav';
 import HomeScreen from './screens/HomeScreen';
 import LibraryScreen from './screens/LibraryScreen';
-
-type Tab = 'Home' | 'Library';
+import BookDetailPage from './screens/BookDetailPage';
+import BookEditPage from './screens/BookEditPage';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<Tab>('Home');
-
   return (
     <BooksProvider>
       <div className="h-full flex flex-col bg-background">
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-          <div className={`flex-1 min-h-0 flex-col ${activeTab === 'Home' ? 'flex' : 'hidden'}`}>
-            <HomeScreen />
-          </div>
-          <div className={`flex-1 min-h-0 flex-col ${activeTab === 'Library' ? 'flex' : 'hidden'}`}>
-            <LibraryScreen />
-          </div>
+          <Routes>
+            <Route path="/" element={<HomeScreen />} />
+            <Route path="/library" element={<LibraryScreen />} />
+            <Route path="/book/:id" element={<BookDetailPage />} />
+            <Route path="/book/:id/edit" element={<BookEditPage />} />
+          </Routes>
         </div>
-
-        <FloatingNav activeTab={activeTab} onNavigateToTab={setActiveTab} />
+        <FloatingNav />
       </div>
     </BooksProvider>
   );
