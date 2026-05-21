@@ -1,6 +1,6 @@
 import { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
 import { BookItem, BookData, ReadState } from '../types/book';
-import { openLibraryLookup, openLibraryLookupByTitleAuthor } from '../utils/openLibraryLookup';
+import { combinedLookup, combinedLookupByTitleAuthor } from '../utils/combinedLookup';
 import { USE_SEED_DATA, SEED_BOOKS } from '../data/seedData';
 
 const STORAGE_KEY = 'bookapp_books';
@@ -65,7 +65,7 @@ export function BooksProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'UPDATE', id, patch: { originalText: text, state: text ? 'ACTIVE' : 'EMPTY' } });
   };
 
-  function applyLookupResult(id: string, result: Awaited<ReturnType<typeof openLibraryLookup>>, currentReadState?: ReadState) {
+  function applyLookupResult(id: string, result: Awaited<ReturnType<typeof combinedLookup>>, currentReadState?: ReadState) {
     if (result.type === 'single') {
       dispatch({ type: 'UPDATE', id, patch: { state: undefined, matchState: 'matched', readState: currentReadState ?? 'unread', resolvedTitle: result.book.title, resolvedAuthor: result.book.author, resolvedYear: result.book.year, options: undefined } });
     } else if (result.type === 'multi') {
@@ -79,13 +79,13 @@ export function BooksProvider({ children }: { children: ReactNode }) {
     const trimmed = text.trim();
     if (!trimmed) return;
     dispatch({ type: 'UPDATE', id, patch: { originalText: trimmed, state: 'SEARCHING', sortOrder: Date.now() } });
-    const result = await openLibraryLookup(trimmed);
+    const result = await combinedLookup(trimmed);
     applyLookupResult(id, result);
   };
 
   const lookupCandidatesByTitleAuthor = async (id: string, title: string, author: string): Promise<'candidates' | 'not_found'> => {
     dispatch({ type: 'UPDATE', id, patch: { state: 'SEARCHING' } });
-    const result = await openLibraryLookupByTitleAuthor(title, author, true);
+    const result = await combinedLookupByTitleAuthor(title, author, true);
     if (result.type !== 'none') {
       const options = result.type === 'multi' ? result.options : [result.book];
       dispatch({ type: 'UPDATE', id, patch: { state: undefined, matchState: 'candidates', options } });
@@ -100,7 +100,7 @@ export function BooksProvider({ children }: { children: ReactNode }) {
     const book = books.find(b => b.id === id);
     if (!book) return;
     dispatch({ type: 'UPDATE', id, patch: { state: 'SEARCHING' } });
-    const result = await openLibraryLookup(book.originalText, true);
+    const result = await combinedLookup(book.originalText, true);
     if (result.type === 'multi') {
       dispatch({ type: 'UPDATE', id, patch: { state: undefined, matchState: 'candidates', options: result.options } });
     } else if (result.type === 'single') {
@@ -114,7 +114,7 @@ export function BooksProvider({ children }: { children: ReactNode }) {
     const book = books.find(b => b.id === id);
     if (!book) return;
     dispatch({ type: 'UPDATE', id, patch: { matchState: 'matched', resolvedTitle: title, resolvedAuthor: author || undefined, resolvedYear: undefined, options: undefined, searchAuthor: undefined, readState: book.readState ?? 'unread' } });
-    const result = await openLibraryLookupByTitleAuthor(title, author, false);
+    const result = await combinedLookupByTitleAuthor(title, author, false);
     if (result.type === 'single') {
       dispatch({ type: 'UPDATE', id, patch: { resolvedTitle: result.book.title, resolvedAuthor: result.book.author, resolvedYear: result.book.year } });
     }
